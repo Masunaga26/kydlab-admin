@@ -50,10 +50,10 @@ export default function PessoaView() {
     );
   }
 
-  if (!data) return <p>Carregando...</p>;
+  if (!data) return <p style={{ textAlign: "center" }}>Carregando...</p>;
 
   return (
-    <div style={{ background: "#f5f5f5", minHeight: "100vh" }}>
+    <div style={page}>
       
       {/* HEADER */}
       <div style={header}>
@@ -69,7 +69,7 @@ export default function PessoaView() {
 
       <div style={container}>
 
-        {/* 🚑 SAMU PRIMEIRO */}
+        {/* 🚑 SAMU */}
         <a href="tel:192" style={btnSamu}>
           🚑 Chamar SAMU 192
         </a>
@@ -81,7 +81,7 @@ export default function PessoaView() {
           </div>
         )}
 
-        {/* 👤 CONTATO 1 */}
+        {/* CONTATO 1 */}
         <div style={card}>
           <p style={label}>CONTATO 1</p>
           <h3>{data.tutor1_nome}</h3>
@@ -108,7 +108,7 @@ export default function PessoaView() {
           </button>
         </div>
 
-        {/* 👤 CONTATO 2 */}
+        {/* CONTATO 2 */}
         {data.tutor2_telefone && (
           <div style={card}>
             <p style={label}>CONTATO 2</p>
@@ -130,7 +130,7 @@ export default function PessoaView() {
           </div>
         )}
 
-        {/* 🩺 SAÚDE */}
+        {/* SAÚDE */}
         <div style={card}>
           <h3>🩺 Informações de saúde</h3>
 
@@ -152,13 +152,20 @@ export default function PessoaView() {
   );
 }
 
-/* ===== ESTILO ===== */
+/* ===== ESTILOS ===== */
+
+const page = {
+  background: "#f5f5f5",
+  minHeight: "100vh",
+  overflowX: "hidden" // 🔥 evita scroll lateral
+};
 
 const header = {
   background: "#ff2d2d",
-  padding: 30,
+  padding: 25,
   textAlign: "center",
-  color: "#fff"
+  color: "#fff",
+  width: "100%" // 🔥 evita overflow
 };
 
 const foto = {
@@ -167,7 +174,8 @@ const foto = {
   borderRadius: "50%",
   objectFit: "cover",
   border: "4px solid #fff",
-  marginBottom: 10
+  marginBottom: 10,
+  maxWidth: "100%" // 🔥 segurança mobile
 };
 
 const nome = { margin: 0, fontSize: 16 };
@@ -177,7 +185,8 @@ const frase = { marginTop: 5 };
 const container = {
   maxWidth: 420,
   margin: "0 auto",
-  padding: 15
+  padding: 15,
+  width: "100%" // 🔥 evita estouro
 };
 
 const tipoBox = {
@@ -207,34 +216,37 @@ const label = {
 const botoes = {
   display: "flex",
   gap: 10,
-  marginTop: 10
+  marginTop: 10,
+  width: "100%"
 };
 
 const btnLigar = {
   flex: 1,
   background: "#ff2d2d",
   color: "#fff",
-  padding: 10,
+  padding: 12,
   textAlign: "center",
-  borderRadius: 10,
-  textDecoration: "none"
+  borderRadius: 12,
+  textDecoration: "none",
+  fontWeight: "600"
 };
 
 const btnWhats = {
   flex: 1,
-  border: "2px solid #25D366",
-  color: "#25D366",
-  padding: 10,
+  background: "#25D366", // 🔥 agora correto
+  color: "#fff",
+  padding: 12,
   textAlign: "center",
-  borderRadius: 10,
-  textDecoration: "none"
+  borderRadius: 12,
+  textDecoration: "none",
+  fontWeight: "600"
 };
 
 const btnLocal = {
   marginTop: 10,
   width: "100%",
-  padding: 12,
-  borderRadius: 10,
+  padding: 14,
+  borderRadius: 12,
   border: "none",
   background: "#ff2d2d",
   color: "#fff",
