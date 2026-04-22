@@ -36,36 +36,24 @@ export default function PetView() {
         const { latitude, longitude } = pos.coords;
 
         const mensagem = encodeURIComponent(
-          `Estou com seu pet!\nLocalização: https://maps.google.com/?q=${latitude},${longitude}`
+          `Encontrei seu pet! 🐶\nEstou enviando minha localização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
         );
 
         const url = `https://wa.me/55${telefone}?text=${mensagem}`;
 
         window.open(url, "_blank");
       },
-      (erro) => {
+      () => {
         setLoadingLoc(false);
-
-        if (erro.code === 1) {
-          alert("Você precisa permitir a localização.");
-        } else if (erro.code === 2) {
-          alert("Não foi possível obter sua localização.");
-        } else {
-          alert("Erro ao acessar localização.");
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        alert("Permita a localização para enviar.");
       }
     );
   }
 
-  if (!data) return <p>Carregando...</p>;
+  if (!data) return <p style={{ textAlign: "center" }}>Carregando...</p>;
 
   return (
-    <div style={{ background: "#f5f5f5", minHeight: "100vh" }}>
+    <div style={page}>
       
       {/* HEADER */}
       <div style={header}>
@@ -76,7 +64,7 @@ export default function PetView() {
 
         <h2 style={nome}>Oi, me chamo</h2>
         <h1 style={petNome}>{data.name}</h1>
-        <p style={frase}>Me ajuda voltar pra casa!</p>
+        <p style={frase}>Estou perdido 😢 Me ajude a voltar pra casa!</p>
       </div>
 
       <div style={container}>
@@ -88,7 +76,7 @@ export default function PetView() {
 
           <div style={botoes}>
             <a href={`tel:${data.tutor1_telefone}`} style={btnLigar}>
-              📞 Ligar Agora
+              📞 Ligar
             </a>
 
             <a
@@ -116,7 +104,7 @@ export default function PetView() {
 
             <div style={botoes}>
               <a href={`tel:${data.tutor2_telefone}`} style={btnLigar}>
-                📞 Ligar Agora
+                📞 Ligar
               </a>
 
               <a
@@ -140,7 +128,7 @@ export default function PetView() {
 
         {/* DICA */}
         <p style={dica}>
-          💡 No WhatsApp do tutor, envie uma localização.
+          💡 Dica: envie sua localização pelo WhatsApp para o tutor.
         </p>
 
       </div>
@@ -150,11 +138,18 @@ export default function PetView() {
 
 /* ===== ESTILOS ===== */
 
+const page = {
+  background: "#f5f5f5",
+  minHeight: "100vh",
+  overflowX: "hidden"
+};
+
 const header = {
   background: "#ff2d2d",
-  padding: 30,
+  padding: 25,
   textAlign: "center",
-  color: "#fff"
+  color: "#fff",
+  width: "100%"
 };
 
 const foto = {
@@ -163,7 +158,8 @@ const foto = {
   borderRadius: "50%",
   objectFit: "cover",
   border: "4px solid #fff",
-  marginBottom: 10
+  marginBottom: 10,
+  maxWidth: "100%"
 };
 
 const nome = { margin: 0, fontSize: 16 };
@@ -173,7 +169,8 @@ const frase = { marginTop: 5 };
 const container = {
   maxWidth: 420,
   margin: "0 auto",
-  padding: 15
+  padding: 15,
+  width: "100%"
 };
 
 const card = {
@@ -193,39 +190,41 @@ const label = {
 const botoes = {
   display: "flex",
   gap: 10,
-  marginTop: 10
+  marginTop: 10,
+  width: "100%"
 };
 
 const btnLigar = {
   flex: 1,
   background: "#ff2d2d",
   color: "#fff",
-  padding: 10,
+  padding: 12,
   textAlign: "center",
-  borderRadius: 10,
-  textDecoration: "none"
+  borderRadius: 12,
+  textDecoration: "none",
+  fontWeight: "600"
 };
 
 const btnWhats = {
   flex: 1,
-  border: "2px solid #25D366",
-  color: "#25D366",
-  padding: 10,
+  background: "#25D366",
+  color: "#fff",
+  padding: 12,
   textAlign: "center",
-  borderRadius: 10,
-  textDecoration: "none"
+  borderRadius: 12,
+  textDecoration: "none",
+  fontWeight: "600"
 };
 
 const btnLocal = {
   marginTop: 10,
   width: "100%",
-  padding: 12,
-  borderRadius: 10,
+  padding: 14,
+  borderRadius: 12,
   border: "none",
   background: "#ff2d2d",
   color: "#fff",
-  fontWeight: "bold",
-  cursor: "pointer"
+  fontWeight: "bold"
 };
 
 const dica = {
