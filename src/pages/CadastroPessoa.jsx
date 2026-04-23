@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import Container from "../components/Container";
 
 export default function CadastroPessoa() {
   const { code } = useParams();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
+  const [dataNascimento, setDataNascimento] = useState(""); // 🔥 NOVO
   const [contato1Nome, setContato1Nome] = useState("");
   const [contato1Telefone, setContato1Telefone] = useState("");
   const [contato2Nome, setContato2Nome] = useState("");
@@ -65,6 +67,7 @@ export default function CadastroPessoa() {
       .from("tags")
       .update({
         name,
+        data_nascimento: dataNascimento, // 🔥 NOVO
         tipo: "pessoa",
         telefone: contato1Telefone,
         tutor1_nome: contato1Nome,
@@ -85,149 +88,124 @@ export default function CadastroPessoa() {
       return;
     }
 
-    navigate(`/view/pessoa/${code}`);
+    navigate(`/pessoa/${code}`);
   }
 
   return (
-    <div style={{ background: "#f5f5f5", minHeight: "100vh" }}>
-      
+    <Container>
+
       {/* HEADER */}
       <div style={header}>
-        <div style={headerContent}>
-          <div style={avatar}>👤</div>
-          <div>
-            <h2 style={title}>Cadastro de Pessoa</h2>
-            <p style={subtitle}>Identificação • {code}</p>
-          </div>
-        </div>
+        <h2>👤 Cadastro de Pessoa</h2>
+        <p style={subtitle}>Identificação • {code}</p>
       </div>
 
-      <div style={container}>
+      {/* FOTO */}
+      <div style={card}>
+        <h3>📸 Foto</h3>
 
-        {/* FOTO */}
-        <div style={card}>
-          <h3>📸 Foto</h3>
+        <label style={fotoCircle}>
+          {preview ? (
+            <img src={preview} style={imgCircle} />
+          ) : (
+            <>
+              <div style={{ fontSize: 28 }}>👤</div>
+              <span style={fotoTexto}>Enviar foto</span>
+            </>
+          )}
+          <input type="file" onChange={handleFoto} hidden />
+        </label>
 
-          <label style={fotoCircle}>
-            {preview ? (
-              <img src={preview} style={imgCircle} />
-            ) : (
-              <>
-                <div style={{ fontSize: 28 }}>👤</div>
-                <span style={fotoTexto}>Enviar foto</span>
-                <small>JPG ou PNG, máx 5MB</small>
-              </>
-            )}
-            <input type="file" onChange={handleFoto} hidden />
-          </label>
+        <input
+          style={input}
+          placeholder="Nome completo"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
 
-          <input style={input} placeholder="Nome completo" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-
-        {/* SAÚDE */}
-        <div style={card}>
-          <h3>🩸 Saúde</h3>
-
-          <select style={input} value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)}>
-            <option value="">Tipo sanguíneo</option>
-            <option>O+</option><option>O-</option>
-            <option>A+</option><option>A-</option>
-            <option>B+</option><option>B-</option>
-            <option>AB+</option><option>AB-</option>
-          </select>
-
-          <textarea style={input} placeholder="Comorbidades" value={comorbidades} onChange={(e) => setComorbidades(e.target.value)} />
-          <textarea style={input} placeholder="Alergias" value={alergias} onChange={(e) => setAlergias(e.target.value)} />
-          <textarea style={input} placeholder="Medicamentos" value={medicamentos} onChange={(e) => setMedicamentos(e.target.value)} />
-        </div>
-
-        {/* CONTATOS */}
-        <div style={card}>
-          <h3>📞 Contatos</h3>
-
-          <input style={input} placeholder="Nome do contato 1" value={contato1Nome} onChange={(e) => setContato1Nome(e.target.value)} />
-          <input style={input} placeholder="Telefone contato 1" value={contato1Telefone} onChange={(e) => setContato1Telefone(e.target.value)} />
-
-          <input style={input} placeholder="Nome do contato 2 (opcional)" value={contato2Nome} onChange={(e) => setContato2Nome(e.target.value)} />
-          <input style={input} placeholder="Telefone contato 2" value={contato2Telefone} onChange={(e) => setContato2Telefone(e.target.value)} />
-        </div>
-
-        {/* ALERTA */}
-        <div style={alerta}>
-          <strong>⚠️ ATENÇÃO</strong>
-          <p>Revise cuidadosamente os dados antes de salvar.</p>
-          <p>Por segurança, não será possível editar depois.</p>
-          <p>Essas informações podem ser essenciais em uma emergência.</p>
-        </div>
-
-        <button style={botao} onClick={salvar}>
-          💾 Salvar Cadastro
-        </button>
-
+        {/* 🔥 DATA DE NASCIMENTO */}
+        <input
+          type="date"
+          style={input}
+          value={dataNascimento}
+          onChange={(e) => setDataNascimento(e.target.value)}
+        />
       </div>
-    </div>
+
+      {/* SAÚDE */}
+      <div style={card}>
+        <h3>🩸 Saúde</h3>
+
+        <select style={input} value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)}>
+          <option value="">Tipo sanguíneo</option>
+          <option>O+</option><option>O-</option>
+          <option>A+</option><option>A-</option>
+          <option>B+</option><option>B-</option>
+          <option>AB+</option><option>AB-</option>
+        </select>
+
+        <textarea style={input} placeholder="Comorbidades" value={comorbidades} onChange={(e) => setComorbidades(e.target.value)} />
+        <textarea style={input} placeholder="Alergias" value={alergias} onChange={(e) => setAlergias(e.target.value)} />
+        <textarea style={input} placeholder="Medicamentos" value={medicamentos} onChange={(e) => setMedicamentos(e.target.value)} />
+      </div>
+
+      {/* CONTATOS */}
+      <div style={card}>
+        <h3>📞 Contatos</h3>
+
+        <input style={input} placeholder="Nome do contato principal" value={contato1Nome} onChange={(e) => setContato1Nome(e.target.value)} />
+        <input style={input} placeholder="Telefone principal" value={contato1Telefone} onChange={(e) => setContato1Telefone(e.target.value)} />
+
+        <input style={input} placeholder="Nome contato 2 (opcional)" value={contato2Nome} onChange={(e) => setContato2Nome(e.target.value)} />
+        <input style={input} placeholder="Telefone contato 2" value={contato2Telefone} onChange={(e) => setContato2Telefone(e.target.value)} />
+      </div>
+
+      {/* ALERTA */}
+      <div style={alerta}>
+        ⚠️ Revise os dados antes de salvar.  
+        Essas informações serão usadas em emergências.
+      </div>
+
+      {/* BOTÃO */}
+      <button style={botao} onClick={salvar}>
+        💾 Salvar Cadastro
+      </button>
+
+    </Container>
   );
 }
 
 /* ===== ESTILOS ===== */
 
 const header = {
-  background: "#ff2d2d",
-  padding: 20,
-  borderBottomLeftRadius: 20,
-  borderBottomRightRadius: 20
+  textAlign: "center",
+  marginBottom: 20
 };
 
-const headerContent = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10
-};
-
-const avatar = {
-  background: "#fff",
-  borderRadius: "50%",
-  width: 45,
-  height: 45,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 22
-};
-
-const title = { margin: 0, color: "#fff" };
-const subtitle = { margin: 0, color: "#ffdede", fontSize: 12 };
-
-const container = {
-  maxWidth: 420,
-  margin: "0 auto",
-  padding: 15
+const subtitle = {
+  fontSize: 12,
+  color: "#777"
 };
 
 const card = {
   background: "#fff",
-  padding: 18,
-  borderRadius: 18,
-  boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
-  marginBottom: 18,
-  display: "flex",
-  flexDirection: "column",
-  gap: 12
+  padding: 15,
+  borderRadius: 15,
+  marginBottom: 15,
+  boxShadow: "0 4px 15px rgba(0,0,0,0.08)"
 };
 
 const fotoCircle = {
-  width: 130,
-  height: 130,
+  width: 120,
+  height: 120,
   borderRadius: "50%",
   background: "#ffeaea",
-  border: "2px dashed #ffb3b3",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
   margin: "0 auto 10px auto",
-  cursor: "pointer",
-  textAlign: "center"
+  cursor: "pointer"
 };
 
 const fotoTexto = {
@@ -247,17 +225,17 @@ const input = {
   padding: 12,
   borderRadius: 10,
   border: "1px solid #ddd",
-  fontSize: 14,
-  outline: "none"
+  fontSize: 14
 };
 
 const alerta = {
-  border: "2px solid #ff2d2d",
   background: "#fff5f5",
-  padding: 16,
-  borderRadius: 14,
-  marginBottom: 20,
-  fontSize: 14
+  border: "1px solid #ffb3b3",
+  padding: 12,
+  borderRadius: 10,
+  fontSize: 13,
+  marginBottom: 15,
+  textAlign: "center"
 };
 
 const botao = {
@@ -268,7 +246,5 @@ const botao = {
   border: "none",
   borderRadius: 12,
   fontSize: 16,
-  fontWeight: "bold",
-  boxShadow: "0 4px 12px rgba(255,45,45,0.4)",
-  cursor: "pointer"
+  fontWeight: "bold"
 };

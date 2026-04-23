@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import Container from "../components/Container";
 
 export default function PetView() {
   const { code } = useParams();
@@ -17,6 +18,17 @@ export default function PetView() {
       .select("*")
       .eq("code", code)
       .single();
+
+    if (!data) {
+      alert("Código inválido");
+      window.location.href = "/";
+      return;
+    }
+
+    if (!data.locked) {
+      window.location.href = `/escolha/${code}`;
+      return;
+    }
 
     setData(data);
   }
@@ -36,16 +48,14 @@ export default function PetView() {
         const { latitude, longitude } = pos.coords;
 
         const mensagem = encodeURIComponent(
-          `Encontrei seu pet! 🐶\nEstou enviando minha localização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
+          `Encontrei seu pet! 🐶\nLocalização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
         );
 
-        const url = `https://wa.me/55${telefone}?text=${mensagem}`;
-
-        window.open(url, "_blank");
+        window.open(`https://wa.me/55${telefone}?text=${mensagem}`, "_blank");
       },
       () => {
         setLoadingLoc(false);
-        alert("Permita a localização para enviar.");
+        alert("Permita a localização.");
       }
     );
   }
@@ -53,8 +63,8 @@ export default function PetView() {
   if (!data) return <p style={{ textAlign: "center" }}>Carregando...</p>;
 
   return (
-    <div style={page}>
-      
+    <Container>
+
       {/* HEADER */}
       <div style={header}>
         <img
@@ -67,89 +77,82 @@ export default function PetView() {
         <p style={frase}>Estou perdido 😢 Me ajude a voltar pra casa!</p>
       </div>
 
-      <div style={container}>
+      {/* TUTOR 1 */}
+      <div style={card}>
+        <p style={label}>TUTOR</p>
+        <h3>{data.tutor1_nome}</h3>
 
-        {/* TUTOR 1 */}
+        <div style={botoes}>
+          <a href={`tel:${data.tutor1_telefone}`} style={btnLigar}>
+            📞 Ligar
+          </a>
+
+          <a
+            href={`https://wa.me/55${data.tutor1_telefone}`}
+            target="_blank"
+            style={btnWhats}
+          >
+            💬 WhatsApp
+          </a>
+        </div>
+
+        <button
+          style={btnLocal}
+          onClick={() => enviarLocalizacao(data.tutor1_telefone)}
+        >
+          {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
+        </button>
+      </div>
+
+      {/* TUTOR 2 */}
+      {data.tutor2_telefone && (
         <div style={card}>
-          <p style={label}>TUTOR 1</p>
-          <h3>{data.tutor1_nome}</h3>
+          <p style={label}>CONTATO 2</p>
+          <h3>{data.tutor2_nome}</h3>
 
           <div style={botoes}>
-            <a href={`tel:${data.tutor1_telefone}`} style={btnLigar}>
+            <a href={`tel:${data.tutor2_telefone}`} style={btnLigar}>
               📞 Ligar
             </a>
 
             <a
-              href={`https://wa.me/55${data.tutor1_telefone}`}
+              href={`https://wa.me/55${data.tutor2_telefone}`}
               target="_blank"
               style={btnWhats}
             >
               💬 WhatsApp
             </a>
           </div>
-
-          <button
-            style={btnLocal}
-            onClick={() => enviarLocalizacao(data.tutor1_telefone)}
-          >
-            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
-          </button>
         </div>
+      )}
 
-        {/* TUTOR 2 */}
-        {data.tutor2_telefone && (
-          <div style={card}>
-            <p style={label}>TUTOR 2</p>
-            <h3>{data.tutor2_nome}</h3>
+      {/* OBS */}
+      {data.observacoes && (
+        <div style={card}>
+          <p style={label}>INFORMAÇÕES</p>
+          <p>{data.observacoes}</p>
+        </div>
+      )}
 
-            <div style={botoes}>
-              <a href={`tel:${data.tutor2_telefone}`} style={btnLigar}>
-                📞 Ligar
-              </a>
+      {/* RODAPÉ */}
+      <p style={rodape}>
+        Este QR ajuda a conectar pessoas em situações de emergência.
+        Obrigado por ajudar 🙏
+      </p>
 
-              <a
-                href={`https://wa.me/55${data.tutor2_telefone}`}
-                target="_blank"
-                style={btnWhats}
-              >
-                💬 WhatsApp
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* OBS */}
-        {data.observacoes && (
-          <div style={card}>
-            <p style={label}>INFORMAÇÕES IMPORTANTES</p>
-            <p>{data.observacoes}</p>
-          </div>
-        )}
-
-        {/* DICA */}
-        <p style={dica}>
-          💡 Dica: envie sua localização pelo WhatsApp para o tutor.
-        </p>
-
-      </div>
-    </div>
+    </Container>
   );
 }
 
 /* ===== ESTILOS ===== */
 
-const page = {
-  background: "#f5f5f5",
-  minHeight: "100vh",
-  overflowX: "hidden"
-};
-
 const header = {
   background: "#ff2d2d",
-  padding: 25,
+  padding: "25px 15px",
+  borderRadius: "0 0 20px 20px",
   textAlign: "center",
   color: "#fff",
-  width: "100%"
+  marginBottom: 20
 };
 
 const foto = {
@@ -158,20 +161,12 @@ const foto = {
   borderRadius: "50%",
   objectFit: "cover",
   border: "4px solid #fff",
-  marginBottom: 10,
-  maxWidth: "100%"
+  marginBottom: 10
 };
 
 const nome = { margin: 0, fontSize: 16 };
-const petNome = { margin: 0, fontSize: 28 };
+const petNome = { margin: 0, fontSize: 26 };
 const frase = { marginTop: 5 };
-
-const container = {
-  maxWidth: 420,
-  margin: "0 auto",
-  padding: 15,
-  width: "100%"
-};
 
 const card = {
   background: "#fff",
@@ -191,7 +186,7 @@ const botoes = {
   display: "flex",
   gap: 10,
   marginTop: 10,
-  width: "100%"
+  flexWrap: "wrap"
 };
 
 const btnLigar = {
@@ -227,8 +222,10 @@ const btnLocal = {
   fontWeight: "bold"
 };
 
-const dica = {
+const rodape = {
   textAlign: "center",
+  fontSize: 12,
   color: "#777",
-  fontSize: 13
+  marginTop: 20,
+  lineHeight: 1.4
 };

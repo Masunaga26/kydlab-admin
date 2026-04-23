@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import Container from "../components/Container";
 
 export default function PessoaView() {
   const { code } = useParams();
@@ -18,7 +19,35 @@ export default function PessoaView() {
       .eq("code", code)
       .single();
 
+    if (!data) {
+      alert("Código inválido");
+      window.location.href = "/";
+      return;
+    }
+
+    if (!data.locked) {
+      window.location.href = `/escolha/${code}`;
+      return;
+    }
+
     setData(data);
+  }
+
+  // 🔥 CALCULAR IDADE
+  function calcularIdade(dataNascimento) {
+    if (!dataNascimento) return null;
+
+    const hoje = new Date();
+    const nasc = new Date(dataNascimento);
+
+    let idade = hoje.getFullYear() - nasc.getFullYear();
+    const m = hoje.getMonth() - nasc.getMonth();
+
+    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+      idade--;
+    }
+
+    return idade;
   }
 
   function enviarLocalizacao(telefone) {
@@ -36,16 +65,14 @@ export default function PessoaView() {
         const { latitude, longitude } = pos.coords;
 
         const mensagem = encodeURIComponent(
-          `Estou com essa pessoa!\nLocalização: https://maps.google.com/?q=${latitude},${longitude}`
+          `Estou com essa pessoa!\nLocalização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
         );
 
-        const url = `https://wa.me/55${telefone}?text=${mensagem}`;
-
-        window.open(url, "_blank");
+        window.open(`https://wa.me/55${telefone}?text=${mensagem}`, "_blank");
       },
       () => {
         setLoadingLoc(false);
-        alert("Permita a localização para enviar.");
+        alert("Permita a localização.");
       }
     );
   }
@@ -53,8 +80,8 @@ export default function PessoaView() {
   if (!data) return <p style={{ textAlign: "center" }}>Carregando...</p>;
 
   return (
-    <div style={page}>
-      
+    <Container>
+
       {/* HEADER */}
       <div style={header}>
         <img
@@ -62,75 +89,82 @@ export default function PessoaView() {
           style={foto}
         />
 
-        <h2 style={nome}>Oi, me chamo</h2>
+        <h2 style={nome}>Olá, meu nome é</h2>
         <h1 style={pessoaNome}>{data.name}</h1>
-        <p style={frase}>Me ajude em uma emergência</p>
-      </div>
 
-      <div style={container}>
-
-        {/* 🚑 SAMU */}
-        <a href="tel:192" style={btnSamu}>
-          🚑 Chamar SAMU 192
-        </a>
-
-        {/* 🩸 TIPO SANGUÍNEO */}
-        {data.tipo_sanguineo && (
-          <div style={tipoBox}>
-            🩸 Tipo sanguíneo: <strong>{data.tipo_sanguineo}</strong>
-          </div>
+        {/* 🔥 IDADE */}
+        {data.data_nascimento && (
+          <p style={idadeStyle}>
+            🎂 {calcularIdade(data.data_nascimento)} anos
+          </p>
         )}
 
-        {/* CONTATO 1 */}
+        <p style={frase}>🚨 Preciso de ajuda em uma emergência</p>
+      </div>
+
+      {/* 🚑 SAMU */}
+      <a href="tel:192" style={btnSamu}>
+        🚑 Emergência SAMU 192
+      </a>
+
+      {/* 🩸 TIPO SANGUÍNEO */}
+      {data.tipo_sanguineo && (
+        <div style={tipoBox}>
+          🩸 Tipo sanguíneo: <strong>{data.tipo_sanguineo}</strong>
+        </div>
+      )}
+
+      {/* CONTATO 1 */}
+      <div style={card}>
+        <p style={label}>CONTATO PRINCIPAL</p>
+        <h3>{data.tutor1_nome}</h3>
+
+        <div style={botoes}>
+          <a href={`tel:${data.tutor1_telefone}`} style={btnLigar}>
+            📞 Ligar
+          </a>
+
+          <a
+            href={`https://wa.me/55${data.tutor1_telefone}`}
+            target="_blank"
+            style={btnWhats}
+          >
+            💬 WhatsApp
+          </a>
+        </div>
+
+        <button
+          style={btnLocal}
+          onClick={() => enviarLocalizacao(data.tutor1_telefone)}
+        >
+          {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
+        </button>
+      </div>
+
+      {/* CONTATO 2 */}
+      {data.tutor2_telefone && (
         <div style={card}>
-          <p style={label}>CONTATO 1</p>
-          <h3>{data.tutor1_nome}</h3>
+          <p style={label}>CONTATO 2</p>
+          <h3>{data.tutor2_nome}</h3>
 
           <div style={botoes}>
-            <a href={`tel:${data.tutor1_telefone}`} style={btnLigar}>
+            <a href={`tel:${data.tutor2_telefone}`} style={btnLigar}>
               📞 Ligar
             </a>
 
             <a
-              href={`https://wa.me/55${data.tutor1_telefone}`}
+              href={`https://wa.me/55${data.tutor2_telefone}`}
               target="_blank"
               style={btnWhats}
             >
               💬 WhatsApp
             </a>
           </div>
-
-          <button
-            style={btnLocal}
-            onClick={() => enviarLocalizacao(data.tutor1_telefone)}
-          >
-            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
-          </button>
         </div>
+      )}
 
-        {/* CONTATO 2 */}
-        {data.tutor2_telefone && (
-          <div style={card}>
-            <p style={label}>CONTATO 2</p>
-            <h3>{data.tutor2_nome}</h3>
-
-            <div style={botoes}>
-              <a href={`tel:${data.tutor2_telefone}`} style={btnLigar}>
-                📞 Ligar
-              </a>
-
-              <a
-                href={`https://wa.me/55${data.tutor2_telefone}`}
-                target="_blank"
-                style={btnWhats}
-              >
-                💬 WhatsApp
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* SAÚDE */}
+      {/* SAÚDE */}
+      {(data.comorbidades || data.alergias || data.medicamentos) && (
         <div style={card}>
           <h3>🩺 Informações de saúde</h3>
 
@@ -146,26 +180,27 @@ export default function PessoaView() {
             <p><strong>Medicamentos:</strong> {data.medicamentos}</p>
           )}
         </div>
+      )}
 
-      </div>
-    </div>
+      {/* RODAPÉ */}
+      <p style={rodape}>
+        Este QR ajuda em situações de emergência.
+        Use estas informações com responsabilidade 🙏
+      </p>
+
+    </Container>
   );
 }
 
 /* ===== ESTILOS ===== */
 
-const page = {
-  background: "#f5f5f5",
-  minHeight: "100vh",
-  overflowX: "hidden" // 🔥 evita scroll lateral
-};
-
 const header = {
   background: "#ff2d2d",
-  padding: 25,
+  padding: "25px 15px",
+  borderRadius: "0 0 20px 20px",
   textAlign: "center",
   color: "#fff",
-  width: "100%" // 🔥 evita overflow
+  marginBottom: 20
 };
 
 const foto = {
@@ -174,20 +209,19 @@ const foto = {
   borderRadius: "50%",
   objectFit: "cover",
   border: "4px solid #fff",
-  marginBottom: 10,
-  maxWidth: "100%" // 🔥 segurança mobile
+  marginBottom: 10
 };
 
 const nome = { margin: 0, fontSize: 16 };
-const pessoaNome = { margin: 0, fontSize: 28 };
-const frase = { marginTop: 5 };
+const pessoaNome = { margin: 0, fontSize: 26 };
 
-const container = {
-  maxWidth: 420,
-  margin: "0 auto",
-  padding: 15,
-  width: "100%" // 🔥 evita estouro
+const idadeStyle = {
+  marginTop: 5,
+  fontSize: 14,
+  opacity: 0.9
 };
+
+const frase = { marginTop: 5 };
 
 const tipoBox = {
   background: "#ffeaea",
@@ -217,7 +251,7 @@ const botoes = {
   display: "flex",
   gap: 10,
   marginTop: 10,
-  width: "100%"
+  flexWrap: "wrap"
 };
 
 const btnLigar = {
@@ -233,7 +267,7 @@ const btnLigar = {
 
 const btnWhats = {
   flex: 1,
-  background: "#25D366", // 🔥 agora correto
+  background: "#25D366",
   color: "#fff",
   padding: 12,
   textAlign: "center",
@@ -259,9 +293,17 @@ const btnSamu = {
   padding: 14,
   borderRadius: 12,
   textAlign: "center",
-  background: "#ff2d2d",
+  background: "#d10000",
   color: "#fff",
   textDecoration: "none",
   fontWeight: "bold",
   marginBottom: 15
+};
+
+const rodape = {
+  textAlign: "center",
+  fontSize: 12,
+  color: "#777",
+  marginTop: 20,
+  lineHeight: 1.4
 };

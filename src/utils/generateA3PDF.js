@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 
+const BASE_URL = "https://app.kydlab.com.br";
+
 export async function generateA3PDF(tags) {
   const pdf = new jsPDF({
     orientation: "portrait",
@@ -8,13 +10,12 @@ export async function generateA3PDF(tags) {
     format: "a3",
   });
 
-  // 📐 CONFIGURAÇÃO (já otimizado pra 125)
-  const qrSize = 15; // 1.5cm
-  const textWidth = 30; // 3cm
-  const boxWidth = qrSize + textWidth; // 45mm
-  const boxHeight = 15; // 1.5cm
+  const qrSize = 15;
+  const textWidth = 30;
+  const boxWidth = qrSize + textWidth;
+  const boxHeight = 15;
 
-  const margin = 20; // 🔥 2cm
+  const margin = 20;
 
   const pageWidth = 297;
   const pageHeight = 420;
@@ -22,8 +23,8 @@ export async function generateA3PDF(tags) {
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2;
 
-  const cols = Math.floor(usableWidth / boxWidth); // 5
-  const rows = Math.floor(usableHeight / boxHeight); // 25
+  const cols = Math.floor(usableWidth / boxWidth);
+  const rows = Math.floor(usableHeight / boxHeight);
 
   let x = margin;
   let y = margin;
@@ -33,27 +34,21 @@ export async function generateA3PDF(tags) {
   for (let i = 0; i < tags.length; i++) {
     const tag = tags[i];
 
-    const url = `https://kydlab.com.br/pet/${tag.code}`;
+    const url = `${BASE_URL}/qr/${tag.code}`;
 
     const qr = await QRCode.toDataURL(url, {
       errorCorrectionLevel: "H",
       margin: 0,
-      scale: 8, // 🔥 alta definição
+      scale: 8,
     });
 
-    // 🧱 Caixa
     pdf.rect(x, y, boxWidth, boxHeight);
-
-    // divisão
     pdf.line(x + qrSize, y, x + qrSize, y + boxHeight);
 
-    // QR
     pdf.addImage(qr, "PNG", x + 1, y + 1, qrSize - 2, qrSize - 2);
 
-    // texto
     pdf.setFont("Helvetica", "bold");
     pdf.setFontSize(10);
-
     pdf.text(tag.code, x + qrSize + 2, y + boxHeight / 2 + 2);
 
     col++;
@@ -75,5 +70,5 @@ export async function generateA3PDF(tags) {
     }
   }
 
-  pdf.save("QR_A3_125_KYDLAB.pdf");
+  pdf.save("QR_A3_KYDLAB.pdf");
 }

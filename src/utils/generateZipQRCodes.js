@@ -9,7 +9,7 @@ export async function generateZipQRCodes(tags) {
 
   for (let tag of tags) {
 
-    const url = `${BASE_URL}/qr/${tag.code}`; // 🔥 CORRETO
+    const url = `${BASE_URL}/pet/${tag.code}`; // 🔥 CORRETO
 
     const qr = await QRCode.toDataURL(url);
 

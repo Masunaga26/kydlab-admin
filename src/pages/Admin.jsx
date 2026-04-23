@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { generateA3PDF } from "../utils/generateA3PDF";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import QRCode from "qrcode";
+
+const BASE_URL = "https://app.kydlab.com.br";
 
 export default function Admin() {
   const [tags, setTags] = useState([]);
@@ -25,149 +28,123 @@ export default function Admin() {
 
   // STATUS
   const getStatus = (t) => {
-    if (t.locked) return "Bloqueado";
+    if (t.locked) return "Cadastrado";
     if (t.name) return "Vinculado";
     return "Disponível";
   };
 
-  // 🔒 BLOQUEAR
-  const toggleLock = async (tag) => {
-    const { error } = await supabase
-      .from("tags")
-      .update({ locked: !tag.locked })
-      .eq("id", tag.id);
-
-    if (error) return alert("Erro");
-
-    fetchData();
-  };
-
   // ✏️ EDITAR
-  const editar = async (tag) => {
-    if (tag.locked) return alert("Desbloqueie primeiro");
+  function editar(tag) {
+    window.location.href = `/admin/edit/${tag.code}`;
+  }
 
-    const nome = prompt("Nome:", tag.name || "");
-    if (nome === null) return;
-
-    const telefone = prompt("Telefone:", tag.telefone || "");
-
-    const { error } = await supabase
-      .from("tags")
-      .update({
-        name: nome || null,
-        telefone: telefone || null,
-      })
-      .eq("id", tag.id);
-
-    if (error) return alert("Erro");
-
-    fetchData();
-  };
-
-  // 🧹 LIMPAR
-  const limpar = async (tag) => {
-    if (!confirm("Limpar?")) return;
+  // 🧹 LIMPAR (BLOQUEIO SIMPLES)
+  async function limpar(tag) {
+    if (!confirm("Deseja resetar este QR?")) return;
 
     const { error } = await supabase
       .from("tags")
       .update({
+        locked: false,
         name: null,
         telefone: null,
+        tutor1_nome: null,
+        tutor1_telefone: null,
+        tutor2_nome: null,
+        tutor2_telefone: null,
+        foto_url: null,
         tipo: null,
-        locked: false,
+        tipo_sanguineo: null,
+        comorbidades: null,
+        alergias: null,
+        medicamentos: null,
+        observacoes: null
       })
-      .eq("id", tag.id);
+      .eq("code", tag.code);
 
-    if (error) return alert("Erro");
+    if (error) {
+      alert("Erro ao limpar");
+      console.error(error);
+      return;
+    }
 
     fetchData();
-  };
+  }
+
+  // ⬇️ BAIXAR QR
+  async function baixarQR(tag) {
+    try {
+      const url = `${BASE_URL}/qr/${tag.code}`;
+
+      const qrDataUrl = await QRCode.toDataURL(url, {
+        width: 1000
+      });
+
+      const link = document.createElement("a");
+      link.href = qrDataUrl;
+      link.download = `QR_${tag.code}.png`;
+
+      link.click();
+    } catch (err) {
+      alert("Erro ao gerar QR");
+      console.error(err);
+    }
+  }
 
   // 📥 XLS
-  const exportXLS = () => {
-   const data = tags.map((t) => ({
-  Código: t.code,
-  NFC_URL: `https://kydlab.com.br/nfc/${t.code}`,
-      Nome: t.name || "-",
-      Telefone: t.telefone || "-",
-      Status: getStatus(t),
-      Baixado: t.downloaded ? "Sim" : "Não",
-      Criado: new Date(t.created_at).toLocaleString(),
-    }));
+  function exportXLS() {
+  const data = tags.map((t) => ({
+    Código: t.code,
+    NFC: `${BASE_URL}/nfc/${t.code}`, // 🔥 NOVO
+    QR: `${BASE_URL}/qr/${t.code}`,   // (renomeei URL pra QR)
+    Nome: t.name || "-",
+    Telefone: t.telefone || "-",
+    Status: getStatus(t),
+    Criado: new Date(t.created_at).toLocaleString(),
+  }));
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Tags");
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Tags");
 
-    const buffer = XLSX.write(wb, {
-      bookType: "xlsx",
-      type: "array",
-    });
+  const buffer = XLSX.write(wb, {
+    bookType: "xlsx",
+    type: "array",
+  });
 
-    saveAs(new Blob([buffer]), "tags_kydlab.xlsx");
-  };
+  saveAs(new Blob([buffer]), "tags_kydlab.xlsx");
+}
 
-  // 📱 QR
-  const gerarQR = async (code) => {
-    const url = `https://kydlab.com.br/qr/${code}`;
+  // 🚀 GERAR A3
+  async function gerarA3() {
+    const qtd = 125;
 
-    const canvas = document.createElement("canvas");
-    await QRCode.toCanvas(canvas, url);
-
-    const link = document.createElement("a");
-    link.download = `${code}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
-  };
-
-  // 🚀 GERAR LOTE
-  const gerarLote = async () => {
-    const loteId = Date.now();
-
-    const novos = Array.from({ length: 125 }).map(() => ({
+    const novos = Array.from({ length: qtd }).map(() => ({
       code: Math.random().toString(36).substring(2, 10).toUpperCase(),
-      lote: loteId,
-      printed: false,
-      downloaded: false,
       locked: false,
+      downloaded: false,
     }));
 
     const { error } = await supabase.from("tags").insert(novos);
 
-    if (error) return alert("Erro ao gerar lote");
+    if (error) {
+      alert("Erro ao gerar lote");
+      return;
+    }
 
-    alert("Lote criado!");
-    fetchData();
-  };
-
-  // 📥 BAIXAR
-  const baixarArquivos = async () => {
     const { data } = await supabase
       .from("tags")
       .select("*")
-      .eq("downloaded", false)
-      .limit(125);
+      .order("created_at", { ascending: false })
+      .limit(qtd);
 
-    if (!data.length) return alert("Nada para baixar");
+    await generateA3PDF(data);
 
-    for (const tag of data) {
-      await gerarQR(tag.code);
-    }
-
-    const ids = data.map((t) => t.id);
-
-    await supabase
-      .from("tags")
-      .update({
-        downloaded: true,
-        downloaded_at: new Date(),
-      })
-      .in("id", ids);
-
-    alert("Download feito!");
+    alert("PDF gerado!");
     fetchData();
-  };
+  }
 
+  // 🔍 FILTRO
   const filtered = tags.filter((t) =>
     t.code.toLowerCase().includes(search.toLowerCase())
   );
@@ -176,12 +153,13 @@ export default function Admin() {
     <div style={{ padding: 20 }}>
       <h1>🛠️ Admin KYDLAB</h1>
 
+      {/* BOTÕES */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
         <button onClick={exportXLS}>📥 XLS</button>
-        <button onClick={gerarLote}>➕ Gerar QR</button>
-        <button onClick={baixarArquivos}>⬇️ Baixar</button>
+        <button onClick={gerarA3}>📄 Gerar A3 (125 QR)</button>
       </div>
 
+      {/* BUSCA */}
       <input
         placeholder="Buscar código..."
         value={search}
@@ -200,27 +178,46 @@ export default function Admin() {
               <th>Status</th>
               <th>Nome</th>
               <th>Telefone</th>
-              <th>Baixado</th>
               <th>Ações</th>
             </tr>
           </thead>
 
           <tbody>
             {filtered.map((tag) => (
-              <tr key={tag.id}>
+              <tr key={tag.code}>
                 <td>{tag.code}</td>
                 <td>{getStatus(tag)}</td>
                 <td>{tag.name || "-"}</td>
                 <td>{tag.telefone || "-"}</td>
-                <td>{tag.downloaded ? "✔" : "-"}</td>
 
-                <td style={{ display: "flex", gap: 5 }}>
-                  <button onClick={() => gerarQR(tag.code)}>QR</button>
-                  <button onClick={() => toggleLock(tag)}>
-                    {tag.locked ? "🔓" : "🔒"}
-                  </button>
-                  <button onClick={() => editar(tag)}>✏️</button>
-                  <button onClick={() => limpar(tag)}>🧹</button>
+                <td>
+                  <div style={{ display: "flex", gap: 5 }}>
+                    
+                    {/* ⬇️ QR DOWNLOAD */}
+                    <button
+                      style={{ background: "#555", color: "#fff" }}
+                      onClick={() => baixarQR(tag)}
+                    >
+                      ⬇️ QR
+                    </button>
+
+                    {/* ✏️ EDITAR */}
+                    <button
+                      style={{ background: "#3498db", color: "#fff" }}
+                      onClick={() => editar(tag)}
+                    >
+                      ✏️
+                    </button>
+
+                    {/* 🧹 LIMPAR */}
+                    <button
+                      style={{ background: "#e74c3c", color: "#fff" }}
+                      onClick={() => limpar(tag)}
+                    >
+                      🧹
+                    </button>
+
+                  </div>
                 </td>
               </tr>
             ))}
