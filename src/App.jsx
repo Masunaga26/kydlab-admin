@@ -12,10 +12,9 @@ import PetView from "./pages/PetView";
 import PessoaView from "./pages/PessoaView";
 
 import Admin from "./pages/Admin";
-import AdminEdit from "./pages/AdminEdit";
-import AdminLogin from "./pages/AdminLogin";
+import Login from "./pages/Login"; // ✅ corrigido
 
-// 🔒 Proteção (CORRIGIDO)
+// 🔒 Proteção
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -27,7 +26,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/admin" />} />
 
         {/* 🔓 LOGIN */}
-        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/login" element={<Login />} />
 
         {/* 🔒 ADMIN */}
         <Route
@@ -35,15 +34,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Admin />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/edit/:code"
-          element={
-            <ProtectedRoute>
-              <AdminEdit />
             </ProtectedRoute>
           }
         />
