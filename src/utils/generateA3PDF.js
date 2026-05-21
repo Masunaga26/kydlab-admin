@@ -10,63 +10,76 @@ export async function generateA3PDF(tags) {
     format: "a3",
   });
 
-  const qrSize = 15;
-  const textWidth = 30;
-  const boxWidth = qrSize + textWidth;
-  const boxHeight = 15;
-
-  const margin = 20;
-
+  // 📄 DIMENSÕES A3
   const pageWidth = 297;
   const pageHeight = 420;
 
+  // 🔒 MARGEM FIXA
+  const margin = 20;
+
+  // 📦 TAMANHOS FIXOS
+  const qrBox = 15;      // caixa do QR: 1,5 cm
+  const qrSize = 10;     // QR interno: 1 cm
+  const textWidth = 30;  // área do código
+
+  const boxWidth = qrBox + textWidth; // 45 mm
+  const boxHeight = qrBox;            // 15 mm
+
+  // 📐 ÁREA ÚTIL
   const usableWidth = pageWidth - margin * 2;
   const usableHeight = pageHeight - margin * 2;
 
   const cols = Math.floor(usableWidth / boxWidth);
   const rows = Math.floor(usableHeight / boxHeight);
 
-  let x = margin;
-  let y = margin;
-  let col = 0;
-  let row = 0;
+  let index = 0;
 
-  for (let i = 0; i < tags.length; i++) {
-    const tag = tags[i];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (index >= tags.length) break;
 
-    const url = `${BASE_URL}/qr/${tag.code}`;
+      const tag = tags[index];
 
-    const qr = await QRCode.toDataURL(url, {
-      errorCorrectionLevel: "H",
-      margin: 0,
-      scale: 8,
-    });
+      const x = margin + c * boxWidth;
+      const y = margin + r * boxHeight;
 
-    pdf.rect(x, y, boxWidth, boxHeight);
-    pdf.line(x + qrSize, y, x + qrSize, y + boxHeight);
+      const url = `${BASE_URL}/qr/${tag.code}`;
 
-    pdf.addImage(qr, "PNG", x + 1, y + 1, qrSize - 2, qrSize - 2);
+      const qr = await QRCode.toDataURL(url, {
+        errorCorrectionLevel: "H",
+        margin: 0,
+        scale: 8,
+      });
 
-    pdf.setFont("Helvetica", "bold");
-    pdf.setFontSize(10);
-    pdf.text(tag.code, x + qrSize + 2, y + boxHeight / 2 + 2);
+      // 🔲 BORDA EXTERNA
+      pdf.rect(x, y, boxWidth, boxHeight);
 
-    col++;
-    x += boxWidth;
+      // 🔳 LINHA DIVISÓRIA
+      pdf.line(x + qrBox, y, x + qrBox, y + boxHeight);
 
-    if (col >= cols) {
-      col = 0;
-      x = margin;
-      row++;
-      y += boxHeight;
-    }
+      // 📱 QR CENTRALIZADO NA CAIXA
+      const qrOffset = (qrBox - qrSize) / 2;
 
-    if (row >= rows) {
-      pdf.addPage();
-      row = 0;
-      col = 0;
-      x = margin;
-      y = margin;
+      pdf.addImage(
+        qr,
+        "PNG",
+        x + qrOffset,
+        y + qrOffset,
+        qrSize,
+        qrSize
+      );
+
+      // 🔤 CÓDIGO
+      pdf.setFont("Helvetica", "bold");
+      pdf.setFontSize(9);
+
+      pdf.text(
+        tag.code,
+        x + qrBox + 2,
+        y + boxHeight / 2 + 2
+      );
+
+      index++;
     }
   }
 
