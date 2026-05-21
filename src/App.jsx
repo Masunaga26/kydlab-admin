@@ -23,7 +23,7 @@ export default function App() {
         {/* ADMIN */}
         <Route path="/admin" element={<Admin />} />
 
-        {/* ROTAS PÚBLICAS — QR / NFC NÃO PODEM PEDIR LOGIN */}
+        {/* ENTRADAS PÚBLICAS QR / NFC */}
         <Route path="/qr/:code" element={<QrRedirect />} />
         <Route path="/nfc/:code" element={<NfcView />} />
 
@@ -34,11 +34,15 @@ export default function App() {
         <Route path="/cadastro/pet/:code" element={<CadastroPet />} />
         <Route path="/cadastro/pessoa/:code" element={<CadastroPessoa />} />
 
-        {/* VISUALIZAÇÃO PÚBLICA */}
+        {/* ROTAS ANTIGAS QUE O QR/NFC USA */}
+        <Route path="/pet/:code" element={<PetView />} />
+        <Route path="/pessoa/:code" element={<PessoaView />} />
+        <Route path="/view/pet/:code" element={<PetView />} />
+        <Route path="/view/pessoa/:code" element={<PessoaView />} />
+
+        {/* ROTAS NOVAS / COMPATIBILIDADE */}
         <Route path="/perfil/pet/:code" element={<PetView />} />
         <Route path="/perfil/pessoa/:code" element={<PessoaView />} />
-
-        {/* COMPATIBILIDADE COM LINKS ANTIGOS */}
         <Route path="/perfil/:code" element={<NfcView />} />
 
         {/* REDIRECIONAMENTO PADRÃO */}
