@@ -15,6 +15,7 @@ export default function CadastroPet() {
   const [observacoes, setObservacoes] = useState("");
   const [foto, setFoto] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [salvando, setSalvando] = useState(false);
 
   function handleFoto(e) {
     const file = e.target.files[0];
@@ -25,19 +26,32 @@ export default function CadastroPet() {
   }
 
   async function salvar() {
-    const { data: check } = await supabase
+    if (salvando) return;
+
+    setSalvando(true);
+
+    const { data: check, error: checkError } = await supabase
       .from("tags")
       .select("locked")
       .eq("code", code)
       .single();
 
+    if (checkError) {
+      console.error("Erro ao verificar código:", checkError);
+      alert("Erro ao verificar código: " + checkError.message);
+      setSalvando(false);
+      return;
+    }
+
     if (check?.locked) {
       alert("Cadastro já bloqueado");
+      setSalvando(false);
       return;
     }
 
     if (!name || !tutor1Telefone) {
       alert("Preencha os campos obrigatórios");
+      setSalvando(false);
       return;
     }
 
@@ -64,7 +78,6 @@ export default function CadastroPet() {
       .update({
         name,
         tipo: "pet",
-        telefone: tutor1Telefone,
         tutor1_nome: tutor1Nome,
         tutor1_telefone: tutor1Telefone,
         tutor2_nome: tutor2Nome,
@@ -76,7 +89,9 @@ export default function CadastroPet() {
       .eq("code", code);
 
     if (error) {
-      alert("Erro ao salvar");
+      console.error("Erro Supabase ao salvar pet:", error);
+      alert("Erro ao salvar: " + (error.message || "erro desconhecido"));
+      setSalvando(false);
       return;
     }
 
@@ -105,7 +120,7 @@ export default function CadastroPet() {
               <span style={fotoTexto}>Enviar foto</span>
             </>
           )}
-          <input type="file" onChange={handleFoto} hidden />
+          <input type="file" onChange={handleFoto} hidden disabled={salvando} />
         </label>
 
         <input
@@ -113,6 +128,7 @@ export default function CadastroPet() {
           placeholder="Nome do pet"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          disabled={salvando}
         />
       </div>
 
@@ -125,6 +141,7 @@ export default function CadastroPet() {
           placeholder="Nome do tutor principal"
           value={tutor1Nome}
           onChange={(e) => setTutor1Nome(e.target.value)}
+          disabled={salvando}
         />
 
         <input
@@ -132,6 +149,7 @@ export default function CadastroPet() {
           placeholder="Telefone principal"
           value={tutor1Telefone}
           onChange={(e) => setTutor1Telefone(e.target.value)}
+          disabled={salvando}
         />
 
         <input
@@ -139,6 +157,7 @@ export default function CadastroPet() {
           placeholder="Nome tutor 2 (opcional)"
           value={tutor2Nome}
           onChange={(e) => setTutor2Nome(e.target.value)}
+          disabled={salvando}
         />
 
         <input
@@ -146,6 +165,7 @@ export default function CadastroPet() {
           placeholder="Telefone contato 2"
           value={tutor2Telefone}
           onChange={(e) => setTutor2Telefone(e.target.value)}
+          disabled={salvando}
         />
       </div>
 
@@ -158,6 +178,7 @@ export default function CadastroPet() {
           placeholder="Ex: dócil, idoso, precisa de cuidados..."
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
+          disabled={salvando}
         />
       </div>
 
@@ -168,8 +189,16 @@ export default function CadastroPet() {
       </div>
 
       {/* BOTÃO */}
-      <button style={botao} onClick={salvar}>
-        💾 Salvar Cadastro
+      <button
+        style={{
+          ...botao,
+          opacity: salvando ? 0.7 : 1,
+          cursor: salvando ? "not-allowed" : "pointer"
+        }}
+        onClick={salvar}
+        disabled={salvando}
+      >
+        {salvando ? "⏳ Salvando..." : "💾 Salvar Cadastro"}
       </button>
 
     </Container>

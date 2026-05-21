@@ -8,7 +8,7 @@ export default function CadastroPessoa() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
-  const [dataNascimento, setDataNascimento] = useState(""); // 🔥 NOVO
+  const [dataNascimento, setDataNascimento] = useState("");
   const [contato1Nome, setContato1Nome] = useState("");
   const [contato1Telefone, setContato1Telefone] = useState("");
   const [contato2Nome, setContato2Nome] = useState("");
@@ -19,6 +19,7 @@ export default function CadastroPessoa() {
   const [medicamentos, setMedicamentos] = useState("");
   const [foto, setFoto] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [salvando, setSalvando] = useState(false);
 
   function handleFoto(e) {
     const file = e.target.files[0];
@@ -29,19 +30,32 @@ export default function CadastroPessoa() {
   }
 
   async function salvar() {
-    const { data: check } = await supabase
+    if (salvando) return;
+
+    setSalvando(true);
+
+    const { data: check, error: checkError } = await supabase
       .from("tags")
       .select("locked")
       .eq("code", code)
       .single();
 
+    if (checkError) {
+      console.error("Erro ao verificar código:", checkError);
+      alert("Erro ao verificar código: " + checkError.message);
+      setSalvando(false);
+      return;
+    }
+
     if (check?.locked) {
       alert("Cadastro já bloqueado");
+      setSalvando(false);
       return;
     }
 
     if (!name || !contato1Telefone) {
       alert("Preencha os campos obrigatórios");
+      setSalvando(false);
       return;
     }
 
@@ -67,9 +81,8 @@ export default function CadastroPessoa() {
       .from("tags")
       .update({
         name,
-        data_nascimento: dataNascimento, // 🔥 NOVO
+        data_nascimento: dataNascimento,
         tipo: "pessoa",
-        telefone: contato1Telefone,
         tutor1_nome: contato1Nome,
         tutor1_telefone: contato1Telefone,
         tutor2_nome: contato2Nome,
@@ -84,7 +97,9 @@ export default function CadastroPessoa() {
       .eq("code", code);
 
     if (error) {
-      alert("Erro ao salvar");
+      console.error("Erro Supabase ao salvar pessoa:", error);
+      alert("Erro ao salvar: " + (error.message || "erro desconhecido"));
+      setSalvando(false);
       return;
     }
 
@@ -113,7 +128,7 @@ export default function CadastroPessoa() {
               <span style={fotoTexto}>Enviar foto</span>
             </>
           )}
-          <input type="file" onChange={handleFoto} hidden />
+          <input type="file" onChange={handleFoto} hidden disabled={salvando} />
         </label>
 
         <input
@@ -121,14 +136,15 @@ export default function CadastroPessoa() {
           placeholder="Nome completo"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          disabled={salvando}
         />
 
-        {/* 🔥 DATA DE NASCIMENTO */}
         <input
           type="date"
           style={input}
           value={dataNascimento}
           onChange={(e) => setDataNascimento(e.target.value)}
+          disabled={salvando}
         />
       </div>
 
@@ -136,7 +152,12 @@ export default function CadastroPessoa() {
       <div style={card}>
         <h3>🩸 Saúde</h3>
 
-        <select style={input} value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)}>
+        <select
+          style={input}
+          value={tipoSanguineo}
+          onChange={(e) => setTipoSanguineo(e.target.value)}
+          disabled={salvando}
+        >
           <option value="">Tipo sanguíneo</option>
           <option>O+</option><option>O-</option>
           <option>A+</option><option>A-</option>
@@ -144,20 +165,66 @@ export default function CadastroPessoa() {
           <option>AB+</option><option>AB-</option>
         </select>
 
-        <textarea style={input} placeholder="Comorbidades" value={comorbidades} onChange={(e) => setComorbidades(e.target.value)} />
-        <textarea style={input} placeholder="Alergias" value={alergias} onChange={(e) => setAlergias(e.target.value)} />
-        <textarea style={input} placeholder="Medicamentos" value={medicamentos} onChange={(e) => setMedicamentos(e.target.value)} />
+        <textarea
+          style={input}
+          placeholder="Comorbidades"
+          value={comorbidades}
+          onChange={(e) => setComorbidades(e.target.value)}
+          disabled={salvando}
+        />
+
+        <textarea
+          style={input}
+          placeholder="Alergias"
+          value={alergias}
+          onChange={(e) => setAlergias(e.target.value)}
+          disabled={salvando}
+        />
+
+        <textarea
+          style={input}
+          placeholder="Medicamentos"
+          value={medicamentos}
+          onChange={(e) => setMedicamentos(e.target.value)}
+          disabled={salvando}
+        />
       </div>
 
       {/* CONTATOS */}
       <div style={card}>
         <h3>📞 Contatos</h3>
 
-        <input style={input} placeholder="Nome do contato principal" value={contato1Nome} onChange={(e) => setContato1Nome(e.target.value)} />
-        <input style={input} placeholder="Telefone principal" value={contato1Telefone} onChange={(e) => setContato1Telefone(e.target.value)} />
+        <input
+          style={input}
+          placeholder="Nome do contato principal"
+          value={contato1Nome}
+          onChange={(e) => setContato1Nome(e.target.value)}
+          disabled={salvando}
+        />
 
-        <input style={input} placeholder="Nome contato 2 (opcional)" value={contato2Nome} onChange={(e) => setContato2Nome(e.target.value)} />
-        <input style={input} placeholder="Telefone contato 2" value={contato2Telefone} onChange={(e) => setContato2Telefone(e.target.value)} />
+        <input
+          style={input}
+          placeholder="Telefone principal"
+          value={contato1Telefone}
+          onChange={(e) => setContato1Telefone(e.target.value)}
+          disabled={salvando}
+        />
+
+        <input
+          style={input}
+          placeholder="Nome contato 2 (opcional)"
+          value={contato2Nome}
+          onChange={(e) => setContato2Nome(e.target.value)}
+          disabled={salvando}
+        />
+
+        <input
+          style={input}
+          placeholder="Telefone contato 2"
+          value={contato2Telefone}
+          onChange={(e) => setContato2Telefone(e.target.value)}
+          disabled={salvando}
+        />
       </div>
 
       {/* ALERTA */}
@@ -167,8 +234,16 @@ export default function CadastroPessoa() {
       </div>
 
       {/* BOTÃO */}
-      <button style={botao} onClick={salvar}>
-        💾 Salvar Cadastro
+      <button
+        style={{
+          ...botao,
+          opacity: salvando ? 0.7 : 1,
+          cursor: salvando ? "not-allowed" : "pointer"
+        }}
+        onClick={salvar}
+        disabled={salvando}
+      >
+        {salvando ? "⏳ Salvando..." : "💾 Salvar Cadastro"}
       </button>
 
     </Container>
