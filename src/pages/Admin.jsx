@@ -10,51 +10,79 @@ export default function Admin() {
   }, []);
 
   async function carregarTags() {
-    const { data, error } = await supabase
-      .from("tags")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let allData = [];
+    let from = 0;
+    let to = 999;
 
-    if (!error) setTags(data);
+    while (true) {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*")
+        .range(from, to);
+
+      if (error) break;
+
+      allData = [...allData, ...data];
+
+      if (data.length < 1000) break;
+
+      from += 1000;
+      to += 1000;
+    }
+
+    setTags(allData);
   }
 
-  // 🔍 FILTRO
   const filtrados = tags.filter((tag) =>
     (tag.code || "").toLowerCase().includes(busca.toLowerCase())
   );
 
-  // 📄 EXPORTAR XLS (CSV)
+  // 🔥 GERAR URLS
+  function gerarUrlQR(code) {
+    return `https://app.kydlab.com.br/qr/${code}`;
+  }
+
+  function gerarUrlNFC(code) {
+    return `https://app.kydlab.com.br/nfc/${code}`;
+  }
+
+  // 🔥 EXPORTAR COMPLETO
   function exportarXLS() {
     const headers = [
       "Código",
       "Status",
+      "Tipo",
       "Nome",
       "Telefone",
-      "Tipo",
-      "Data"
+      "Contato 1",
+      "Contato 2",
+      "Observações",
+      "URL QR",
+      "URL NFC",
+      "Criado em"
     ];
 
-    const rows = filtrados.map((tag) => [
+    const rows = tags.map((tag) => [
       tag.code,
       tag.status,
+      tag.tipo,
       tag.nome,
       tag.telefone,
-      tag.tipo,
-      tag.created_at,
+      tag.contato1,
+      tag.contato2,
+      tag.observacoes,
+      gerarUrlQR(tag.code),
+      gerarUrlNFC(tag.code),
+      tag.created_at
     ]);
 
-    let csvContent =
+    const csv =
       "data:text/csv;charset=utf-8," +
-      [headers, ...rows]
-        .map((e) => e.join(";"))
-        .join("\n");
+      [headers, ...rows].map((e) => e.join(";")).join("\n");
 
-    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
-
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "kydlab_tags.csv");
-    document.body.appendChild(link);
+    link.href = encodeURI(csv);
+    link.download = "kydlab_full.csv";
     link.click();
   }
 
@@ -62,18 +90,12 @@ export default function Admin() {
     <div style={container}>
       <h1>🛠 Admin KYDLAB</h1>
 
-      {/* BOTÕES */}
       <div style={acoes}>
         <button style={btnMain} onClick={exportarXLS}>
-          📄 Exportar XLS
-        </button>
-
-        <button style={btnMain}>
-          🧾 Gerar A3 (125 QR)
+          📄 Exportar COMPLETO
         </button>
       </div>
 
-      {/* BUSCA */}
       <input
         placeholder="Buscar código..."
         value={busca}
@@ -81,18 +103,17 @@ export default function Admin() {
         style={input}
       />
 
-      {/* TABELA */}
       <div style={{ overflowX: "auto" }}>
         <table style={table}>
           <thead>
             <tr>
               <th style={th}>Código</th>
               <th style={th}>Status</th>
+              <th style={th}>Tipo</th>
               <th style={th}>Nome</th>
               <th style={th}>Telefone</th>
-              <th style={th}>Tipo</th>
-              <th style={th}>Criado em</th>
-              <th style={th}>Ações</th>
+              <th style={th}>QR</th>
+              <th style={th}>NFC</th>
             </tr>
           </thead>
 
@@ -100,22 +121,21 @@ export default function Admin() {
             {filtrados.map((tag) => (
               <tr key={tag.id}>
                 <td style={td}>{tag.code}</td>
-                <td style={td}>{tag.status || "Disponível"}</td>
+                <td style={td}>{tag.status}</td>
+                <td style={td}>{tag.tipo}</td>
                 <td style={td}>{tag.nome || "-"}</td>
                 <td style={td}>{tag.telefone || "-"}</td>
-                <td style={td}>{tag.tipo || "-"}</td>
+
                 <td style={td}>
-                  {tag.created_at
-                    ? new Date(tag.created_at).toLocaleDateString()
-                    : "-"}
+                  <a href={gerarUrlQR(tag.code)} target="_blank">
+                    Abrir
+                  </a>
                 </td>
 
                 <td style={td}>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button style={btnDark}>QR</button>
-                    <button style={btnBlue}>✏️</button>
-                    <button style={btnRed}>🗑</button>
-                  </div>
+                  <a href={gerarUrlNFC(tag.code)} target="_blank">
+                    Abrir
+                  </a>
                 </td>
               </tr>
             ))}
@@ -126,43 +146,35 @@ export default function Admin() {
   );
 }
 
-/* ====== ESTILOS ====== */
+/* estilos */
 
 const container = {
-  width: "100%",
   maxWidth: "1400px",
   margin: "0 auto",
   padding: "20px",
 };
 
 const acoes = {
-  display: "flex",
-  gap: "16px",
   marginBottom: "20px",
-  flexWrap: "wrap",
 };
 
 const btnMain = {
   background: "#ff3b3b",
   color: "#fff",
+  padding: "12px",
   border: "none",
-  padding: "12px 20px",
   borderRadius: "8px",
-  cursor: "pointer",
 };
 
 const input = {
   width: "100%",
   padding: "10px",
   marginBottom: "20px",
-  borderRadius: "6px",
-  border: "1px solid #ccc",
 };
 
 const table = {
   width: "100%",
   borderCollapse: "collapse",
-  background: "#fff",
 };
 
 const th = {
@@ -174,31 +186,4 @@ const th = {
 const td = {
   padding: "10px",
   border: "1px solid #ddd",
-};
-
-const btnDark = {
-  background: "#444",
-  color: "#fff",
-  border: "none",
-  padding: "6px 10px",
-  borderRadius: "6px",
-  cursor: "pointer",
-};
-
-const btnBlue = {
-  background: "#3498db",
-  color: "#fff",
-  border: "none",
-  padding: "6px 10px",
-  borderRadius: "6px",
-  cursor: "pointer",
-};
-
-const btnRed = {
-  background: "#e74c3c",
-  color: "#fff",
-  border: "none",
-  padding: "6px 10px",
-  borderRadius: "6px",
-  cursor: "pointer",
-};
+};VVVVV
