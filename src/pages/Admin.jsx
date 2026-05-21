@@ -21,10 +21,7 @@ export default function Admin() {
         .select("*")
         .range(from, to);
 
-      if (error) {
-        console.error(error);
-        break;
-      }
+      if (error) break;
 
       allData = [...allData, ...data];
 
@@ -43,6 +40,10 @@ export default function Admin() {
 
   const BASE_URL = window.location.origin;
 
+  const total = tags.length;
+  const gravados = tags.filter((t) => t.nome).length;
+  const disponiveis = tags.filter((t) => !t.nome).length;
+
   function gerarUrlQR(code) {
     return `${BASE_URL}/qr/${code}`;
   }
@@ -51,7 +52,35 @@ export default function Admin() {
     return `${BASE_URL}/nfc/${code}`;
   }
 
-  // ✅ EXPORTAÇÃO XLS PROFISSIONAL
+  function baixarQR(code) {
+    const url = `${BASE_URL}/qr/${code}`;
+    window.open(url, "_blank");
+  }
+
+  async function limparTag(id) {
+    const confirmar = confirm("Limpar esse cadastro?");
+    if (!confirmar) return;
+
+    await supabase
+      .from("tags")
+      .update({
+        nome: null,
+        telefone: null,
+        contato1: null,
+        contato2: null,
+        observacoes: null,
+        tipo: null,
+        status: "Disponível",
+      })
+      .eq("id", id);
+
+    carregarTags();
+  }
+
+  function gerarA3() {
+    alert("Função gerar A3 (125 QR) - próxima etapa 🚀");
+  }
+
   function exportarXLS() {
     const dados = tags.map((tag) => ({
       Código: tag.code,
@@ -67,21 +96,32 @@ export default function Admin() {
       "Criado em": tag.created_at,
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dados);
-    const workbook = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(dados);
+    const wb = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
-
-    XLSX.writeFile(workbook, "kydlab_tags.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Tags");
+    XLSX.writeFile(wb, "kydlab_tags.xlsx");
   }
 
   return (
     <div style={container}>
       <h1>🛠 Admin KYDLAB</h1>
 
+      {/* CARDS */}
+      <div style={cards}>
+        <div style={card}>Total QR<br /><b>{total}</b></div>
+        <div style={card}>Gravados<br /><b>{gravados}</b></div>
+        <div style={card}>Disponíveis<br /><b>{disponiveis}</b></div>
+      </div>
+
+      {/* BOTÕES */}
       <div style={acoes}>
         <button style={btnMain} onClick={exportarXLS}>
           📄 Exportar XLS
+        </button>
+
+        <button style={btnMain} onClick={gerarA3}>
+          🧾 Gerar A3 (125 QR)
         </button>
       </div>
 
@@ -101,12 +141,9 @@ export default function Admin() {
               <th style={th}>Tipo</th>
               <th style={th}>Nome</th>
               <th style={th}>Telefone</th>
-              <th style={th}>Contato 1</th>
-              <th style={th}>Contato 2</th>
-              <th style={th}>Observações</th>
               <th style={th}>QR</th>
               <th style={th}>NFC</th>
-              <th style={th}>Criado em</th>
+              <th style={th}>Ações</th>
             </tr>
           </thead>
 
@@ -118,26 +155,23 @@ export default function Admin() {
                 <td style={td}>{tag.tipo || "-"}</td>
                 <td style={td}>{tag.nome || "-"}</td>
                 <td style={td}>{tag.telefone || "-"}</td>
-                <td style={td}>{tag.contato1 || "-"}</td>
-                <td style={td}>{tag.contato2 || "-"}</td>
-                <td style={td}>{tag.observacoes || "-"}</td>
 
                 <td style={td}>
-                  <a href={gerarUrlQR(tag.code)} target="_blank">
-                    Abrir
-                  </a>
+                  <a href={gerarUrlQR(tag.code)} target="_blank">Abrir</a>
                 </td>
 
                 <td style={td}>
-                  <a href={gerarUrlNFC(tag.code)} target="_blank">
-                    Abrir
-                  </a>
+                  <a href={gerarUrlNFC(tag.code)} target="_blank">Abrir</a>
                 </td>
 
                 <td style={td}>
-                  {tag.created_at
-                    ? new Date(tag.created_at).toLocaleString()
-                    : "-"}
+                  <button style={btnBlue} onClick={() => baixarQR(tag.code)}>
+                    ⬇ QR
+                  </button>
+
+                  <button style={btnRed} onClick={() => limparTag(tag.id)}>
+                    🧹 Limpar
+                  </button>
                 </td>
               </tr>
             ))}
@@ -148,7 +182,7 @@ export default function Admin() {
   );
 }
 
-/* ===== ESTILOS ===== */
+/* ===== ESTILO ===== */
 
 const container = {
   maxWidth: "1400px",
@@ -156,16 +190,52 @@ const container = {
   padding: "20px",
 };
 
+const cards = {
+  display: "flex",
+  gap: "10px",
+  marginBottom: "20px",
+};
+
+const card = {
+  flex: 1,
+  background: "#eee",
+  padding: "15px",
+  borderRadius: "8px",
+  textAlign: "center",
+};
+
 const acoes = {
+  display: "flex",
+  gap: "10px",
   marginBottom: "20px",
 };
 
 const btnMain = {
+  flex: 1,
   background: "#ff3b3b",
   color: "#fff",
   padding: "12px",
   border: "none",
   borderRadius: "8px",
+  cursor: "pointer",
+};
+
+const btnBlue = {
+  background: "#3498db",
+  color: "#fff",
+  padding: "6px",
+  marginRight: "5px",
+  border: "none",
+  borderRadius: "6px",
+  cursor: "pointer",
+};
+
+const btnRed = {
+  background: "#e74c3c",
+  color: "#fff",
+  padding: "6px",
+  border: "none",
+  borderRadius: "6px",
   cursor: "pointer",
 };
 
