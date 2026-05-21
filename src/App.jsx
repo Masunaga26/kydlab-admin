@@ -15,15 +15,15 @@ import Admin from "./pages/Admin";
 import AdminEdit from "./pages/AdminEdit";
 import AdminLogin from "./pages/AdminLogin";
 
-// 🔒 Proteção Admin
-import AdminRoute from "./components/AdminRoute";
+// 🔒 Proteção (CORRIGIDO)
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* 🔥 ROOT → VAI DIRETO PRO ADMIN */}
+        {/* 🔥 ROOT */}
         <Route path="/" element={<Navigate to="/admin" />} />
 
         {/* 🔓 LOGIN */}
@@ -33,22 +33,22 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <AdminRoute>
+            <ProtectedRoute>
               <Admin />
-            </AdminRoute>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/admin/edit/:code"
           element={
-            <AdminRoute>
+            <ProtectedRoute>
               <AdminEdit />
-            </AdminRoute>
+            </ProtectedRoute>
           }
         />
 
-        {/* 🔥 ENTRADAS */}
+        {/* 🔗 ENTRADAS */}
         <Route path="/qr/:code" element={<QrRedirect />} />
         <Route path="/nfc/:code" element={<NfcView />} />
 

@@ -1,6 +1,9 @@
 {
   "routes": [
     { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/" }
+    { "src": "^/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "^/admin$", "dest": "/index.html" },
+    { "src": "^/admin/(.*)", "dest": "/index.html" },
+    { "src": "^/(.*)", "dest": "/index.html" }
   ]
 }
