@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import * as XLSX from "xlsx";
 
 export default function Admin() {
   const [tags, setTags] = useState([]);
@@ -20,7 +21,10 @@ export default function Admin() {
         .select("*")
         .range(from, to);
 
-      if (error) break;
+      if (error) {
+        console.error(error);
+        break;
+      }
 
       allData = [...allData, ...data];
 
@@ -37,53 +41,38 @@ export default function Admin() {
     (tag.code || "").toLowerCase().includes(busca.toLowerCase())
   );
 
-  // 🔥 GERAR URLS
+  const BASE_URL = window.location.origin;
+
   function gerarUrlQR(code) {
-    return `https://app.kydlab.com.br/qr/${code}`;
+    return `${BASE_URL}/qr/${code}`;
   }
 
   function gerarUrlNFC(code) {
-    return `https://app.kydlab.com.br/nfc/${code}`;
+    return `${BASE_URL}/nfc/${code}`;
   }
 
-  // 🔥 EXPORTAR COMPLETO
+  // ✅ EXPORTAÇÃO XLS PROFISSIONAL
   function exportarXLS() {
-    const headers = [
-      "Código",
-      "Status",
-      "Tipo",
-      "Nome",
-      "Telefone",
-      "Contato 1",
-      "Contato 2",
-      "Observações",
-      "URL QR",
-      "URL NFC",
-      "Criado em"
-    ];
+    const dados = tags.map((tag) => ({
+      Código: tag.code,
+      Status: tag.status,
+      Tipo: tag.tipo,
+      Nome: tag.nome,
+      Telefone: tag.telefone,
+      "Contato 1": tag.contato1,
+      "Contato 2": tag.contato2,
+      Observações: tag.observacoes,
+      "URL QR": gerarUrlQR(tag.code),
+      "URL NFC": gerarUrlNFC(tag.code),
+      "Criado em": tag.created_at,
+    }));
 
-    const rows = tags.map((tag) => [
-      tag.code,
-      tag.status,
-      tag.tipo,
-      tag.nome,
-      tag.telefone,
-      tag.contato1,
-      tag.contato2,
-      tag.observacoes,
-      gerarUrlQR(tag.code),
-      gerarUrlNFC(tag.code),
-      tag.created_at
-    ]);
+    const worksheet = XLSX.utils.json_to_sheet(dados);
+    const workbook = XLSX.utils.book_new();
 
-    const csv =
-      "data:text/csv;charset=utf-8," +
-      [headers, ...rows].map((e) => e.join(";")).join("\n");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
 
-    const link = document.createElement("a");
-    link.href = encodeURI(csv);
-    link.download = "kydlab_full.csv";
-    link.click();
+    XLSX.writeFile(workbook, "kydlab_tags.xlsx");
   }
 
   return (
@@ -92,7 +81,7 @@ export default function Admin() {
 
       <div style={acoes}>
         <button style={btnMain} onClick={exportarXLS}>
-          📄 Exportar COMPLETO
+          📄 Exportar XLS
         </button>
       </div>
 
@@ -112,8 +101,12 @@ export default function Admin() {
               <th style={th}>Tipo</th>
               <th style={th}>Nome</th>
               <th style={th}>Telefone</th>
+              <th style={th}>Contato 1</th>
+              <th style={th}>Contato 2</th>
+              <th style={th}>Observações</th>
               <th style={th}>QR</th>
               <th style={th}>NFC</th>
+              <th style={th}>Criado em</th>
             </tr>
           </thead>
 
@@ -121,10 +114,13 @@ export default function Admin() {
             {filtrados.map((tag) => (
               <tr key={tag.id}>
                 <td style={td}>{tag.code}</td>
-                <td style={td}>{tag.status}</td>
-                <td style={td}>{tag.tipo}</td>
+                <td style={td}>{tag.status || "-"}</td>
+                <td style={td}>{tag.tipo || "-"}</td>
                 <td style={td}>{tag.nome || "-"}</td>
                 <td style={td}>{tag.telefone || "-"}</td>
+                <td style={td}>{tag.contato1 || "-"}</td>
+                <td style={td}>{tag.contato2 || "-"}</td>
+                <td style={td}>{tag.observacoes || "-"}</td>
 
                 <td style={td}>
                   <a href={gerarUrlQR(tag.code)} target="_blank">
@@ -137,6 +133,12 @@ export default function Admin() {
                     Abrir
                   </a>
                 </td>
+
+                <td style={td}>
+                  {tag.created_at
+                    ? new Date(tag.created_at).toLocaleString()
+                    : "-"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -146,7 +148,7 @@ export default function Admin() {
   );
 }
 
-/* estilos */
+/* ===== ESTILOS ===== */
 
 const container = {
   maxWidth: "1400px",
@@ -164,6 +166,7 @@ const btnMain = {
   padding: "12px",
   border: "none",
   borderRadius: "8px",
+  cursor: "pointer",
 };
 
 const input = {
