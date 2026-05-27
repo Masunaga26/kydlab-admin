@@ -1,51 +1,97 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
+import TapLayout, {
+  TapHero,
+  TapCard,
+  TapActionRow,
+  TapCallButton,
+  TapWhatsButton,
+} from "../components/TapLayout";
+
 export default function PessoaView() {
+  const { code } = useParams();
+
   const [data, setData] = useState(null);
+  const [erro, setErro] = useState("");
   const [loadingLoc, setLoadingLoc] = useState(false);
 
-  const code = window.location.pathname.split("/").pop();
-
   useEffect(() => {
-    buscar();
+    carregar();
   }, []);
 
-  async function buscar() {
-    const { data } = await supabase
+  async function carregar() {
+    const { data, error } = await supabase
       .from("tags")
       .select("*")
       .eq("code", code)
       .single();
 
+    if (error || !data) {
+      setErro("Código inválido ou não encontrado.");
+      return;
+    }
+
+    if (!data.locked) {
+      window.location.href = `/escolha/${code}`;
+      return;
+    }
+
+    if (data.tipo && data.tipo !== "pessoa") {
+      window.location.href = `/pet/${code}`;
+      return;
+    }
+
     setData(data);
   }
 
-  function telefoneValido(tel) {
-    return tel && tel.length >= 10;
+  function limparTelefone(tel) {
+    return (tel || "").replace(/\D/g, "");
   }
+
+  function telefoneValido(tel) {
+    const limpo = limparTelefone(tel);
+    return limpo.length === 10 || limpo.length === 11;
+  }
+
+  const telefone1 = limparTelefone(data?.contato1_telefone);
+  const telefone2 = limparTelefone(data?.contato2_telefone);
+
+  const telefonePrincipal = telefoneValido(telefone1)
+    ? telefone1
+    : telefoneValido(telefone2)
+    ? telefone2
+    : null;
+
+  const nomePrincipal = telefoneValido(telefone1)
+    ? data?.contato1_nome
+    : data?.contato2_nome;
+
+  const mostrarContato2 =
+    telefoneValido(telefone2) &&
+    telefone2 !== telefonePrincipal &&
+    Boolean(data?.contato2_nome || telefone2);
 
   function mensagemBase() {
     return encodeURIComponent(
-      `Estou com ${data?.nome || "essa pessoa"} em uma emergência.\n\nPor favor entre em contato urgente.`
+      `Estou com ${data?.name || "essa pessoa"} em uma emergência.`
     );
   }
 
-  // 🔥 FUNÇÃO CORRIGIDA (IOS + ANDROID)
+  // 🔥 CORREÇÃO iOS + ANDROID (MESMA DO PETVIEW)
   function enviarLocalizacao(telefone) {
     if (!telefoneValido(telefone)) {
       alert("Telefone não disponível.");
       return;
     }
 
-    // 🔥 ALERT CURTO
-    alert("Vamos usar sua localização para ajudar no resgate");
+    const ok = confirm("Vamos usar sua localização para ajudar no resgate");
+    if (!ok) return;
 
     if (!navigator.geolocation) {
-      window.open(
-        `https://wa.me/55${telefone}?text=${mensagemBase()}`,
-        "_blank"
-      );
+      const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
+      window.open(url, "_self");
       return;
     }
 
@@ -58,93 +104,154 @@ export default function PessoaView() {
         const { latitude, longitude } = pos.coords;
 
         const mensagem = encodeURIComponent(
-          `Estou com ${data?.nome || "essa pessoa"} em uma emergência.\n\n📍 Minha localização:\nhttps://www.google.com/maps?q=${latitude},${longitude}\n\nPor favor entre em contato urgente.`
+          `Estou com ${data?.name || "essa pessoa"} em uma emergência.\n` +
+          `Localização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
         );
 
-        window.open(
-          `https://wa.me/55${telefone}?text=${mensagem}`,
-          "_blank"
-        );
+        const url = `https://wa.me/55${telefone}?text=${mensagem}`;
+
+        // 🔥 essencial para iOS
+        setTimeout(() => {
+          window.open(url, "_self");
+        }, 300);
       },
       () => {
         setLoadingLoc(false);
 
-        window.open(
-          `https://wa.me/55${telefone}?text=${mensagemBase()}`,
-          "_blank"
-        );
+        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
+        window.open(url, "_self");
       },
       {
         enableHighAccuracy: true,
         timeout: 10000,
+        maximumAge: 0,
       }
     );
   }
 
-  if (!data) return <div>Carregando...</div>;
+  if (erro) {
+    return (
+      <TapLayout footerType="simple" productType="pessoa" code={code}>
+        <TapCard>
+          <p style={loading}>{erro}</p>
+        </TapCard>
+      </TapLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <TapLayout footerType="simple" productType="pessoa" code={code}>
+        <p style={loading}>Carregando...</p>
+      </TapLayout>
+    );
+  }
 
   return (
-    <div style={container}>
-      <h1>{data.nome}</h1>
+    <TapLayout footerType="view" productType="pessoa" code={code}>
+      <TapHero
+        variant="view"
+        eyebrow="Estou com"
+        title={(data.name || "Pessoa").toUpperCase()}
+        subtitle="Precisa de ajuda 🚨"
+      />
 
-      <p><b>Telefone:</b> {data.telefone}</p>
-      <p><b>Observações:</b> {data.observacoes}</p>
+      {telefoneValido(telefonePrincipal) && (
+        <TapCard>
+          <p style={label}>CONTATO PRINCIPAL</p>
+          <h3 style={contactName}>{nomePrincipal || "Responsável"}</h3>
 
-      <div style={acoes}>
-        <button
-          style={btn}
-          onClick={() => enviarLocalizacao(data.telefone)}
-        >
-          {loadingLoc ? "Obtendo localização..." : "📍 Enviar localização"}
-        </button>
+          <TapActionRow>
+            <TapCallButton href={`tel:${telefonePrincipal}`}>
+              Ligar
+            </TapCallButton>
 
-        <a
-          href={`tel:${data.telefone}`}
-          style={btnLink}
-        >
-          📞 Ligar
-        </a>
+            <TapWhatsButton
+              href={`https://wa.me/55${telefonePrincipal}?text=${mensagemBase()}`}
+            >
+              WhatsApp
+            </TapWhatsButton>
+          </TapActionRow>
 
-        <a
-          href={`https://wa.me/55${data.telefone}?text=${mensagemBase()}`}
-          target="_blank"
-          style={btnLink}
-        >
-          💬 WhatsApp
-        </a>
-      </div>
-    </div>
+          <button
+            style={btnLocal}
+            onClick={() => enviarLocalizacao(telefonePrincipal)}
+          >
+            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
+          </button>
+        </TapCard>
+      )}
+
+      {mostrarContato2 && (
+        <TapCard>
+          <p style={label}>CONTATO 2</p>
+          <h3 style={contactName}>{data.contato2_nome || "Responsável"}</h3>
+
+          <TapActionRow>
+            <TapCallButton href={`tel:${telefone2}`}>
+              Ligar
+            </TapCallButton>
+
+            <TapWhatsButton
+              href={`https://wa.me/55${telefone2}?text=${mensagemBase()}`}
+            >
+              WhatsApp
+            </TapWhatsButton>
+          </TapActionRow>
+        </TapCard>
+      )}
+
+      {!telefoneValido(telefonePrincipal) && (
+        <TapCard>
+          <p style={label}>CONTATO</p>
+          <p style={infoText}>Nenhum telefone disponível.</p>
+        </TapCard>
+      )}
+
+      {data.observacoes && (
+        <TapCard>
+          <p style={label}>OBSERVAÇÕES</p>
+          <p style={infoText}>{data.observacoes}</p>
+        </TapCard>
+      )}
+    </TapLayout>
   );
 }
 
-/* ===== ESTILO ===== */
+/* estilos */
 
-const container = {
-  padding: "20px",
+const loading = {
   textAlign: "center",
+  padding: 30,
+  color: "#777",
 };
 
-const acoes = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "10px",
-  marginTop: "20px",
+const label = {
+  margin: "0 0 10px",
+  fontSize: 13,
+  color: "#777",
+  fontWeight: 900,
+  textTransform: "uppercase",
 };
 
-const btn = {
-  background: "#ff3b3b",
-  color: "#fff",
-  padding: "15px",
+const contactName = {
+  margin: 0,
+  fontSize: 26,
+  fontWeight: 900,
+};
+
+const btnLocal = {
+  width: "100%",
+  marginTop: 12,
+  minHeight: 54,
+  borderRadius: 14,
   border: "none",
-  borderRadius: "10px",
-  cursor: "pointer",
+  background: "#ef1c1c",
+  color: "#fff",
+  fontWeight: 900,
 };
 
-const btnLink = {
-  display: "block",
-  background: "#333",
-  color: "#fff",
-  padding: "15px",
-  borderRadius: "10px",
-  textDecoration: "none",
+const infoText = {
+  margin: 0,
+  fontSize: 16,
 };
