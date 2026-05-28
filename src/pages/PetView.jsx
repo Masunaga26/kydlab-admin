@@ -20,7 +20,6 @@ export default function PetView() {
     setTag(data);
   }
 
-  // 🚀 LOCALIZAÇÃO FUNCIONANDO IOS + ANDROID
   function enviarLocalizacao() {
     if (!navigator.geolocation) {
       alert("Geolocalização não suportada");
@@ -29,25 +28,15 @@ export default function PetView() {
 
     if (!confirm("Vamos usar sua localização para ajudar no resgate")) return;
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
 
-        const linkMaps = `https://maps.google.com/?q=${lat},${lng}`;
+      const link = `https://maps.google.com/?q=${lat},${lng}`;
+      const texto = `Estou com ${tag?.nome || "um pet"} em uma emergência.\nLocalização: ${link}`;
 
-        const texto = `Estou com ${tag?.nome || "um pet"} em uma emergência.\nLocalização: ${linkMaps}`;
-
-        // 🔥 solução definitiva IOS + Android
-        window.open(
-          `https://wa.me/?text=${encodeURIComponent(texto)}`,
-          "_blank"
-        );
-      },
-      () => {
-        alert("Não foi possível obter localização");
-      }
-    );
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    });
   }
 
   if (!tag) return null;
@@ -59,71 +48,44 @@ export default function PetView() {
         {/* HEADER */}
         <div style={header}>
           <div style={avatar}></div>
-          <h3 style={{ opacity: 0.8 }}>Oi, me chamo</h3>
-          <h1 style={{ margin: 0 }}>{tag.nome || "PET"}</h1>
+          <p style={sub}>Oi, me chamo</p>
+          <h1 style={title}>{tag.nome || "PET"}</h1>
+          <p style={msg}>Me ajuda voltar pra casa!</p>
         </div>
 
         {/* TUTOR 1 */}
-        {tag.tutor1_nome && (
-          <div style={card}>
-            <div style={label}>TUTOR PRINCIPAL</div>
-            <div style={nome}>{tag.tutor1_nome}</div>
+        <div style={card}>
+          <span style={label}>Tutor 1</span>
+          <h3>{tag.tutor1_nome}</h3>
 
-            <div style={row}>
-              {tag.tutor1_telefone && (
-                <a href={`tel:${tag.tutor1_telefone}`} style={btnCall}>
-                  📞 Ligar
-                </a>
-              )}
-
-              {tag.tutor1_telefone && (
-                <a
-                  href={`https://wa.me/55${tag.tutor1_telefone}`}
-                  target="_blank"
-                  style={btnWhats}
-                >
-                  💬 WhatsApp
-                </a>
-              )}
-            </div>
-
-            <button style={btnLocation} onClick={enviarLocalizacao}>
-              📍 Enviar localização
-            </button>
+          <div style={row}>
+            <a href={`tel:${tag.tutor1_telefone}`} style={btnCall}>📞 Ligar Agora</a>
+            <a href={`https://wa.me/55${tag.tutor1_telefone}`} style={btnWhats}>💬 WhatsApp</a>
           </div>
-        )}
+
+          <button style={btnLocation} onClick={enviarLocalizacao}>
+            📍 Enviar localização
+          </button>
+        </div>
 
         {/* TUTOR 2 */}
         {tag.tutor2_nome && (
           <div style={card}>
-            <div style={label}>CONTATO ALTERNATIVO</div>
-            <div style={nome}>{tag.tutor2_nome}</div>
+            <span style={label}>Tutor 2</span>
+            <h3>{tag.tutor2_nome}</h3>
 
             <div style={row}>
-              {tag.tutor2_telefone && (
-                <a href={`tel:${tag.tutor2_telefone}`} style={btnCall}>
-                  📞 Ligar
-                </a>
-              )}
-
-              {tag.tutor2_telefone && (
-                <a
-                  href={`https://wa.me/55${tag.tutor2_telefone}`}
-                  target="_blank"
-                  style={btnWhats}
-                >
-                  💬 WhatsApp
-                </a>
-              )}
+              <a href={`tel:${tag.tutor2_telefone}`} style={btnCall}>📞 Ligar Agora</a>
+              <a href={`https://wa.me/55${tag.tutor2_telefone}`} style={btnWhats}>💬 WhatsApp</a>
             </div>
           </div>
         )}
 
-        {/* OBSERVAÇÕES */}
+        {/* OBS */}
         {tag.observacoes && (
           <div style={card}>
-            <div style={label}>OBSERVAÇÕES</div>
-            <div>{tag.observacoes}</div>
+            <span style={label}>Observações</span>
+            <p>{tag.observacoes}</p>
           </div>
         )}
 
@@ -132,61 +94,59 @@ export default function PetView() {
   );
 }
 
-/* 🎨 ESTILO FINAL (SEU PADRÃO BONITO) */
+/* 🎨 ESTILO PREMIUM */
 
 const container = {
+  background: "#f1f1f1",
+  minHeight: "100vh",
   display: "flex",
   justifyContent: "center",
-  background: "#f4f4f4",
-  minHeight: "100vh",
-  padding: "20px",
+  padding: "20px"
 };
 
 const content = {
   width: "100%",
-  maxWidth: "420px",
+  maxWidth: "380px"
 };
 
 const header = {
   background: "#ef1c1c",
-  color: "#fff",
+  borderRadius: "30px",
   padding: "30px 20px",
-  borderRadius: "20px 20px 40px 40px",
   textAlign: "center",
-  marginBottom: "20px",
+  color: "#fff",
+  marginBottom: "20px"
 };
 
 const avatar = {
   width: "90px",
   height: "90px",
   borderRadius: "50%",
-  background: "#fff3",
-  margin: "0 auto 10px",
+  background: "#ffffff33",
+  margin: "0 auto 15px"
 };
+
+const sub = { opacity: 0.8 };
+const title = { fontSize: "28px", margin: "5px 0" };
+const msg = { fontSize: "14px", opacity: 0.9 };
 
 const card = {
   background: "#fff",
+  borderRadius: "18px",
   padding: "18px",
-  borderRadius: "16px",
   marginBottom: "15px",
-  boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+  boxShadow: "0 6px 15px rgba(0,0,0,0.08)"
 };
 
 const label = {
   fontSize: "12px",
-  color: "#777",
-  marginBottom: "5px",
-};
-
-const nome = {
-  fontSize: "18px",
-  fontWeight: "bold",
+  color: "#888"
 };
 
 const row = {
   display: "flex",
   gap: "10px",
-  marginTop: "10px",
+  marginTop: "10px"
 };
 
 const btnCall = {
@@ -194,9 +154,9 @@ const btnCall = {
   background: "#000",
   color: "#fff",
   padding: "12px",
-  borderRadius: "8px",
+  borderRadius: "10px",
   textAlign: "center",
-  textDecoration: "none",
+  textDecoration: "none"
 };
 
 const btnWhats = {
@@ -204,17 +164,17 @@ const btnWhats = {
   background: "#25D366",
   color: "#fff",
   padding: "12px",
-  borderRadius: "8px",
+  borderRadius: "10px",
   textAlign: "center",
-  textDecoration: "none",
+  textDecoration: "none"
 };
 
 const btnLocation = {
   width: "100%",
+  marginTop: "10px",
   background: "#ef1c1c",
   color: "#fff",
   padding: "14px",
-  borderRadius: "10px",
-  border: "none",
-  marginTop: "10px",
+  borderRadius: "12px",
+  border: "none"
 };
