@@ -29,7 +29,6 @@ export default function PetView() {
       .single();
 
     if (error || !data) {
-      console.error("Erro ao carregar pet:", error);
       setErro("Código inválido ou não encontrado.");
       return;
     }
@@ -56,8 +55,9 @@ export default function PetView() {
     return limpo.length === 10 || limpo.length === 11;
   }
 
-  const telefone1 = limparTelefone(data?.tutor1_telefone);
-  const telefone2 = limparTelefone(data?.tutor2_telefone);
+  // ✅ CORRIGIDO AQUI
+  const telefone1 = limparTelefone(data?.contato1_telefone);
+  const telefone2 = limparTelefone(data?.contato2_telefone);
 
   const telefonePrincipal = telefoneValido(telefone1)
     ? telefone1
@@ -66,21 +66,20 @@ export default function PetView() {
     : null;
 
   const nomeTutorPrincipal = telefoneValido(telefone1)
-    ? data?.tutor1_nome
-    : data?.tutor2_nome;
+    ? data?.contato1_nome
+    : data?.contato2_nome;
 
   const mostrarTutor2 =
     telefoneValido(telefone2) &&
     telefone2 !== telefonePrincipal &&
-    Boolean(data?.tutor2_nome || telefone2);
+    Boolean(data?.contato2_nome || telefone2);
 
   function mensagemBase() {
     return encodeURIComponent(
-      `Encontrei ${data?.name || "esse pet"} em uma emergência.`
+      `Estou com ${data?.name || "esse pet"} em uma emergência.`
     );
   }
 
-  // 🔥 CORREÇÃO DEFINITIVA iOS + ANDROID
   function enviarLocalizacao(telefone) {
     if (!telefoneValido(telefone)) {
       alert("Telefone não disponível.");
@@ -100,7 +99,6 @@ export default function PetView() {
 
     let enviou = false;
 
-    // 🔥 garante que o iOS tenha tempo de responder
     const timeoutFallback = setTimeout(() => {
       if (!enviou) {
         setLoadingLoc(false);
@@ -121,7 +119,8 @@ export default function PetView() {
         const { latitude, longitude } = pos.coords;
 
         const mensagem = encodeURIComponent(
-          `Encontrei ${data?.name || "esse pet"} em uma emergência.\nLocalização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
+          `Estou com ${data?.name || "esse pet"} em uma emergência.\n` +
+            `Localização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
         );
 
         const url = `https://wa.me/55${telefone}?text=${mensagem}`;
@@ -153,7 +152,7 @@ export default function PetView() {
     return (
       <TapLayout footerType="simple" productType="pet" code={code}>
         <TapCard>
-          <p style={loading}>{erro}</p>
+          <p>{erro}</p>
         </TapCard>
       </TapLayout>
     );
@@ -162,32 +161,24 @@ export default function PetView() {
   if (!data) {
     return (
       <TapLayout footerType="simple" productType="pet" code={code}>
-        <p style={loading}>Carregando...</p>
+        <p>Carregando...</p>
       </TapLayout>
     );
   }
-
-  const fotoUrlFinal =
-    data?.foto_url && data.foto_url !== ""
-      ? `${data.foto_url}?t=${Date.now()}`
-      : "https://via.placeholder.com/150";
 
   return (
     <TapLayout footerType="view" productType="pet" code={code}>
       <TapHero
         variant="view"
-        photoUrl={fotoUrlFinal}
         eyebrow="Oi, me chamo"
         title={(data.name || "Pet").toUpperCase()}
-        subtitle="Estou perdido 😢 Me ajude a voltar pra casa!"
+        subtitle="Precisa de ajuda 🚨"
       />
 
       {telefoneValido(telefonePrincipal) && (
         <TapCard>
-          <p style={label}>TUTOR PRINCIPAL</p>
-          <h3 style={contactName}>
-            {nomeTutorPrincipal || "Responsável"}
-          </h3>
+          <p>TUTOR PRINCIPAL</p>
+          <h3>{nomeTutorPrincipal || "Responsável"}</h3>
 
           <TapActionRow>
             <TapCallButton href={`tel:${telefonePrincipal}`}>
@@ -201,11 +192,7 @@ export default function PetView() {
             </TapWhatsButton>
           </TapActionRow>
 
-          <button
-            type="button"
-            style={btnLocal}
-            onClick={() => enviarLocalizacao(telefonePrincipal)}
-          >
+          <button onClick={() => enviarLocalizacao(telefonePrincipal)}>
             {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
           </button>
         </TapCard>
@@ -213,12 +200,12 @@ export default function PetView() {
 
       {mostrarTutor2 && (
         <TapCard>
-          <p style={label}>TUTOR 2</p>
-          <h3 style={contactName}>{data.tutor2_nome || "Responsável"}</h3>
+          <p>CONTATO 2</p>
+          <h3>{data.contato2_nome || "Responsável"}</h3>
 
           <TapActionRow>
             <TapCallButton href={`tel:${telefone2}`}>
-              Ligar Agora
+              Ligar
             </TapCallButton>
 
             <TapWhatsButton
@@ -232,64 +219,17 @@ export default function PetView() {
 
       {!telefoneValido(telefonePrincipal) && (
         <TapCard>
-          <p style={label}>CONTATO</p>
-          <p style={infoText}>
-            Nenhum telefone válido foi informado para este pet.
-          </p>
+          <p>CONTATO</p>
+          <p>Nenhum telefone disponível.</p>
         </TapCard>
       )}
 
       {data.observacoes && (
         <TapCard>
-          <p style={label}>CONDIÇÕES ESPECIAIS / OBSERVAÇÕES</p>
-          <p style={infoText}>{data.observacoes}</p>
+          <p>OBSERVAÇÕES</p>
+          <p>{data.observacoes}</p>
         </TapCard>
       )}
     </TapLayout>
   );
 }
-
-/* 🎨 ESTILO VISUAL DA VIEW PET */
-
-const loading = {
-  textAlign: "center",
-  padding: 30,
-  color: "#777",
-};
-
-const label = {
-  margin: "0 0 10px",
-  fontSize: 13,
-  color: "#777",
-  fontWeight: 900,
-  textTransform: "uppercase",
-  letterSpacing: ".5px",
-};
-
-const contactName = {
-  margin: 0,
-  fontSize: 26,
-  color: "#111",
-  fontWeight: 950,
-};
-
-const btnLocal = {
-  width: "100%",
-  marginTop: 12,
-  minHeight: 54,
-  borderRadius: 14,
-  border: "none",
-  background: "#ef1c1c",
-  color: "#fff",
-  fontWeight: 900,
-  fontSize: 16,
-  cursor: "pointer",
-};
-
-const infoText = {
-  margin: 0,
-  color: "#333",
-  fontSize: 18,
-  lineHeight: 1.45,
-  fontWeight: 500,
-};
