@@ -2,234 +2,201 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-import TapLayout, {
-  TapHero,
-  TapCard,
-  TapActionRow,
-  TapCallButton,
-  TapWhatsButton,
-} from "../components/TapLayout";
-
 export default function PetView() {
   const { code } = useParams();
-
   const [data, setData] = useState(null);
-  const [erro, setErro] = useState("");
-  const [loadingLoc, setLoadingLoc] = useState(false);
 
   useEffect(() => {
-    carregar();
+    buscar();
   }, []);
 
-  async function carregar() {
+  async function buscar() {
     const { data, error } = await supabase
       .from("tags")
       .select("*")
       .eq("code", code)
       .single();
 
-    if (error || !data) {
-      setErro("Código inválido ou não encontrado.");
-      return;
-    }
-
-    if (!data.locked) {
-      window.location.href = `/escolha/${code}`;
-      return;
-    }
-
-    if (data.tipo && data.tipo !== "pet") {
-      window.location.href = `/pessoa/${code}`;
-      return;
-    }
-
-    setData(data);
+    if (!error) setData(data);
   }
 
-  function limparTelefone(tel) {
-    return (tel || "").replace(/\D/g, "");
-  }
-
-  function telefoneValido(tel) {
-    const limpo = limparTelefone(tel);
-    return limpo.length === 10 || limpo.length === 11;
-  }
-
-  // ✅ CORRIGIDO AQUI
-  const telefone1 = limparTelefone(data?.contato1_telefone);
-  const telefone2 = limparTelefone(data?.contato2_telefone);
-
-  const telefonePrincipal = telefoneValido(telefone1)
-    ? telefone1
-    : telefoneValido(telefone2)
-    ? telefone2
-    : null;
-
-  const nomeTutorPrincipal = telefoneValido(telefone1)
-    ? data?.contato1_nome
-    : data?.contato2_nome;
-
-  const mostrarTutor2 =
-    telefoneValido(telefone2) &&
-    telefone2 !== telefonePrincipal &&
-    Boolean(data?.contato2_nome || telefone2);
-
-  function mensagemBase() {
-    return encodeURIComponent(
-      `Estou com ${data?.name || "esse pet"} em uma emergência.`
-    );
-  }
-
-  function enviarLocalizacao(telefone) {
-    if (!telefoneValido(telefone)) {
-      alert("Telefone não disponível.");
-      return;
-    }
-
-    const ok = confirm("Vamos usar sua localização para ajudar no resgate");
-    if (!ok) return;
+  // 🔥 LOCALIZAÇÃO FUNCIONANDO IOS + ANDROID
+  function enviarLocalizacao() {
+    alert("Vamos usar sua localização para ajudar no resgate");
 
     if (!navigator.geolocation) {
-      const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
-      window.open(url, "_self");
+      alert("Localização não suportada");
       return;
     }
-
-    setLoadingLoc(true);
-
-    let enviou = false;
-
-    const timeoutFallback = setTimeout(() => {
-      if (!enviou) {
-        setLoadingLoc(false);
-        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
-        window.open(url, "_self");
-      }
-    }, 8000);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (enviou) return;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
 
-        enviou = true;
-        clearTimeout(timeoutFallback);
+        const link = `https://maps.google.com/?q=${lat},${lng}`;
 
-        setLoadingLoc(false);
+        const mensagem = `Estou com ${nomePet} em uma emergência.\nLocalização: ${link}`;
 
-        const { latitude, longitude } = pos.coords;
-
-        const mensagem = encodeURIComponent(
-          `Estou com ${data?.name || "esse pet"} em uma emergência.\n` +
-            `Localização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
-        );
-
-        const url = `https://wa.me/55${telefone}?text=${mensagem}`;
-
-        setTimeout(() => {
-          window.open(url, "_self");
-        }, 300);
+        if (telefone1) {
+          window.location.href = `https://wa.me/${telefone1}?text=${encodeURIComponent(
+            mensagem
+          )}`;
+        } else {
+          alert("Telefone não disponível");
+        }
       },
       () => {
-        if (enviou) return;
-
-        enviou = true;
-        clearTimeout(timeoutFallback);
-
-        setLoadingLoc(false);
-
-        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
-        window.open(url, "_self");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        alert("Não foi possível obter localização");
       }
     );
   }
 
-  if (erro) {
-    return (
-      <TapLayout footerType="simple" productType="pet" code={code}>
-        <TapCard>
-          <p>{erro}</p>
-        </TapCard>
-      </TapLayout>
-    );
-  }
+  if (!data) return <div>Carregando...</div>;
 
-  if (!data) {
-    return (
-      <TapLayout footerType="simple" productType="pet" code={code}>
-        <p>Carregando...</p>
-      </TapLayout>
-    );
-  }
+  // 🔥 MAPEAMENTO CORRETO DO BANCO
+  const nomePet = data.pet_nome || data.nome || "PET";
+
+  const tutor1 = data.tutor1_nome || "";
+  const telefone1 = data.tutor1_telefone || "";
+
+  const tutor2 = data.tutor2_nome || "";
+  const telefone2 = data.tutor2_telefone || "";
+
+  const obs = data.observacoes || "";
 
   return (
-    <TapLayout footerType="view" productType="pet" code={code}>
-      <TapHero
-        variant="view"
-        eyebrow="Oi, me chamo"
-        title={(data.name || "Pet").toUpperCase()}
-        subtitle="Precisa de ajuda 🚨"
-      />
+    <div style={container}>
+      {/* HEADER */}
+      <div style={header}>
+        <h2>Oi, me chamo</h2>
+        <h1>{nomePet}</h1>
+      </div>
 
-      {telefoneValido(telefonePrincipal) && (
-        <TapCard>
-          <p>TUTOR PRINCIPAL</p>
-          <h3>{nomeTutorPrincipal || "Responsável"}</h3>
+      {/* TUTOR 1 */}
+      {telefone1 && (
+        <div style={card}>
+          <p style={label}>Tutor principal</p>
+          <h3>{tutor1}</h3>
 
-          <TapActionRow>
-            <TapCallButton href={`tel:${telefonePrincipal}`}>
-              Ligar Agora
-            </TapCallButton>
+          <div style={row}>
+            <a href={`tel:${telefone1}`} style={btnCall}>
+              📞 Ligar
+            </a>
 
-            <TapWhatsButton
-              href={`https://wa.me/55${telefonePrincipal}?text=${mensagemBase()}`}
+            <a
+              href={`https://wa.me/${telefone1}`}
+              target="_blank"
+              style={btnZap}
             >
-              WhatsApp
-            </TapWhatsButton>
-          </TapActionRow>
+              💬 WhatsApp
+            </a>
+          </div>
 
-          <button onClick={() => enviarLocalizacao(telefonePrincipal)}>
-            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
+          <button style={btnLocal} onClick={enviarLocalizacao}>
+            📍 Enviar localização
           </button>
-        </TapCard>
+        </div>
       )}
 
-      {mostrarTutor2 && (
-        <TapCard>
-          <p>CONTATO 2</p>
-          <h3>{data.contato2_nome || "Responsável"}</h3>
+      {/* TUTOR 2 */}
+      {telefone2 && (
+        <div style={card}>
+          <p style={label}>Contato alternativo</p>
+          <h3>{tutor2}</h3>
 
-          <TapActionRow>
-            <TapCallButton href={`tel:${telefone2}`}>
-              Ligar
-            </TapCallButton>
+          <div style={row}>
+            <a href={`tel:${telefone2}`} style={btnCall}>
+              📞 Ligar
+            </a>
 
-            <TapWhatsButton
-              href={`https://wa.me/55${telefone2}?text=${mensagemBase()}`}
+            <a
+              href={`https://wa.me/${telefone2}`}
+              target="_blank"
+              style={btnZap}
             >
-              WhatsApp
-            </TapWhatsButton>
-          </TapActionRow>
-        </TapCard>
+              💬 WhatsApp
+            </a>
+          </div>
+        </div>
       )}
 
-      {!telefoneValido(telefonePrincipal) && (
-        <TapCard>
-          <p>CONTATO</p>
+      {/* OBSERVAÇÕES */}
+      {obs && (
+        <div style={card}>
+          <p style={label}>Observações</p>
+          <p>{obs}</p>
+        </div>
+      )}
+
+      {/* FALLBACK */}
+      {!telefone1 && (
+        <div style={card}>
           <p>Nenhum telefone disponível.</p>
-        </TapCard>
+        </div>
       )}
-
-      {data.observacoes && (
-        <TapCard>
-          <p>OBSERVAÇÕES</p>
-          <p>{data.observacoes}</p>
-        </TapCard>
-      )}
-    </TapLayout>
+    </div>
   );
 }
+
+/* 🔥 ESTILOS (mantidos simples e iguais ao seu padrão) */
+
+const container = {
+  maxWidth: "500px",
+  margin: "0 auto",
+  padding: "20px",
+};
+
+const header = {
+  background: "#ff2b2b",
+  color: "#fff",
+  textAlign: "center",
+  padding: "40px 20px",
+  borderRadius: "0 0 30px 30px",
+};
+
+const card = {
+  background: "#f5f5f5",
+  padding: "15px",
+  borderRadius: "12px",
+  marginTop: "15px",
+};
+
+const label = {
+  fontSize: "12px",
+  color: "#666",
+};
+
+const row = {
+  display: "flex",
+  gap: "10px",
+  marginTop: "10px",
+};
+
+const btnCall = {
+  flex: 1,
+  background: "#000",
+  color: "#fff",
+  padding: "10px",
+  textAlign: "center",
+  borderRadius: "8px",
+};
+
+const btnZap = {
+  flex: 1,
+  background: "#25D366",
+  color: "#fff",
+  padding: "10px",
+  textAlign: "center",
+  borderRadius: "8px",
+};
+
+const btnLocal = {
+  marginTop: "10px",
+  width: "100%",
+  background: "#ff2b2b",
+  color: "#fff",
+  padding: "12px",
+  border: "none",
+  borderRadius: "8px",
+};

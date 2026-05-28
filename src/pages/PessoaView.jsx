@@ -2,277 +2,202 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-import TapLayout, {
-  TapHero,
-  TapCard,
-  TapActionRow,
-  TapCallButton,
-  TapWhatsButton,
-} from "../components/TapLayout";
-
 export default function PessoaView() {
   const { code } = useParams();
-
   const [data, setData] = useState(null);
-  const [erro, setErro] = useState("");
-  const [loadingLoc, setLoadingLoc] = useState(false);
 
   useEffect(() => {
-    carregar();
+    buscar();
   }, []);
 
-  async function carregar() {
+  async function buscar() {
     const { data, error } = await supabase
       .from("tags")
       .select("*")
       .eq("code", code)
       .single();
 
-    if (error || !data) {
-      setErro("Código inválido ou não encontrado.");
-      return;
-    }
-
-    if (!data.locked) {
-      window.location.href = `/escolha/${code}`;
-      return;
-    }
-
-    if (data.tipo && data.tipo !== "pessoa") {
-      window.location.href = `/pet/${code}`;
-      return;
-    }
-
-    setData(data);
+    if (!error) setData(data);
   }
 
-  function limparTelefone(tel) {
-    return (tel || "").replace(/\D/g, "");
-  }
-
-  function telefoneValido(tel) {
-    const limpo = limparTelefone(tel);
-    return limpo.length === 10 || limpo.length === 11;
-  }
-
-  const telefone1 = limparTelefone(data?.contato1_telefone);
-  const telefone2 = limparTelefone(data?.contato2_telefone);
-
-  const telefonePrincipal = telefoneValido(telefone1)
-    ? telefone1
-    : telefoneValido(telefone2)
-    ? telefone2
-    : null;
-
-  const nomePrincipal = telefoneValido(telefone1)
-    ? data?.contato1_nome
-    : data?.contato2_nome;
-
-  const mostrarContato2 =
-    telefoneValido(telefone2) &&
-    telefone2 !== telefonePrincipal &&
-    Boolean(data?.contato2_nome || telefone2);
-
-  function mensagemBase() {
-    return encodeURIComponent(
-      `Estou com ${data?.name || "essa pessoa"} em uma emergência.`
-    );
-  }
-
-  // 🔥 FIX PROFISSIONAL iOS + ANDROID (IGUAL PETVIEW)
-  function enviarLocalizacao(telefone) {
-    if (!telefoneValido(telefone)) {
-      alert("Telefone não disponível.");
-      return;
-    }
-
-    const ok = confirm("Vamos usar sua localização para ajudar no resgate");
-    if (!ok) return;
+  // 🔥 LOCALIZAÇÃO IOS + ANDROID
+  function enviarLocalizacao() {
+    alert("Vamos usar sua localização para ajudar no resgate");
 
     if (!navigator.geolocation) {
-      const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
-      window.open(url, "_self");
+      alert("Localização não suportada");
       return;
     }
-
-    setLoadingLoc(true);
-
-    let enviou = false;
-
-    // 🔥 timeout inteligente (resolve iOS 16+)
-    const timeoutFallback = setTimeout(() => {
-      if (!enviou) {
-        setLoadingLoc(false);
-        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
-        window.open(url, "_self");
-      }
-    }, 8000);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (enviou) return;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
 
-        enviou = true;
-        clearTimeout(timeoutFallback);
+        const link = `https://maps.google.com/?q=${lat},${lng}`;
 
-        setLoadingLoc(false);
+        const mensagem = `Estou com ${nomePessoa} em uma emergência.\nLocalização: ${link}`;
 
-        const { latitude, longitude } = pos.coords;
-
-        const mensagem = encodeURIComponent(
-          `Estou com ${data?.name || "essa pessoa"} em uma emergência.\n` +
-          `Localização:\nhttps://maps.google.com/?q=${latitude},${longitude}`
-        );
-
-        const url = `https://wa.me/55${telefone}?text=${mensagem}`;
-
-        // 🔥 ESSENCIAL PRA IOS
-        setTimeout(() => {
-          window.open(url, "_self");
-        }, 300);
+        if (telefone1) {
+          window.location.href = `https://wa.me/${telefone1}?text=${encodeURIComponent(
+            mensagem
+          )}`;
+        } else {
+          alert("Telefone não disponível");
+        }
       },
       () => {
-        if (enviou) return;
-
-        enviou = true;
-        clearTimeout(timeoutFallback);
-
-        setLoadingLoc(false);
-
-        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
-        window.open(url, "_self");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        alert("Não foi possível obter localização");
       }
     );
   }
 
-  if (erro) {
-    return (
-      <TapLayout footerType="simple" productType="pessoa" code={code}>
-        <TapCard>
-          <p style={loading}>{erro}</p>
-        </TapCard>
-      </TapLayout>
-    );
-  }
+  if (!data) return <div>Carregando...</div>;
 
-  if (!data) {
-    return (
-      <TapLayout footerType="simple" productType="pessoa" code={code}>
-        <p style={loading}>Carregando...</p>
-      </TapLayout>
-    );
-  }
+  // 🔥 MAPEAMENTO CORRETO DO BANCO
+  const nomePessoa = data.nome || data.tutor1_nome || "Pessoa";
+
+  const tutor1 = data.tutor1_nome || "";
+  const telefone1 = data.tutor1_telefone || "";
+
+  const tutor2 = data.tutor2_nome || "";
+  const telefone2 = data.tutor2_telefone || "";
+
+  const obs = data.observacoes || "";
 
   return (
-    <TapLayout footerType="view" productType="pessoa" code={code}>
-      <TapHero
-        variant="view"
-        eyebrow="Estou com"
-        title={(data.name || "Pessoa").toUpperCase()}
-        subtitle="Precisa de ajuda 🚨"
-      />
+    <div style={container}>
+      {/* HEADER */}
+      <div style={header}>
+        <h2>Estou com</h2>
+        <h1>{nomePessoa}</h1>
+        <p>Precisa de ajuda 🚨</p>
+      </div>
 
-      {telefoneValido(telefonePrincipal) && (
-        <TapCard>
-          <p style={label}>CONTATO PRINCIPAL</p>
-          <h3 style={contactName}>{nomePrincipal || "Responsável"}</h3>
+      {/* CONTATO PRINCIPAL */}
+      {telefone1 && (
+        <div style={card}>
+          <p style={label}>Contato principal</p>
+          <h3>{tutor1}</h3>
 
-          <TapActionRow>
-            <TapCallButton href={`tel:${telefonePrincipal}`}>
-              Ligar
-            </TapCallButton>
+          <div style={row}>
+            <a href={`tel:${telefone1}`} style={btnCall}>
+              📞 Ligar
+            </a>
 
-            <TapWhatsButton
-              href={`https://wa.me/55${telefonePrincipal}?text=${mensagemBase()}`}
+            <a
+              href={`https://wa.me/${telefone1}`}
+              target="_blank"
+              style={btnZap}
             >
-              WhatsApp
-            </TapWhatsButton>
-          </TapActionRow>
+              💬 WhatsApp
+            </a>
+          </div>
 
-          <button
-            style={btnLocal}
-            onClick={() => enviarLocalizacao(telefonePrincipal)}
-          >
-            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
+          <button style={btnLocal} onClick={enviarLocalizacao}>
+            📍 Enviar localização
           </button>
-        </TapCard>
+        </div>
       )}
 
-      {mostrarContato2 && (
-        <TapCard>
-          <p style={label}>CONTATO 2</p>
-          <h3 style={contactName}>{data.contato2_nome || "Responsável"}</h3>
+      {/* CONTATO 2 */}
+      {telefone2 && (
+        <div style={card}>
+          <p style={label}>Contato alternativo</p>
+          <h3>{tutor2}</h3>
 
-          <TapActionRow>
-            <TapCallButton href={`tel:${telefone2}`}>
-              Ligar
-            </TapCallButton>
+          <div style={row}>
+            <a href={`tel:${telefone2}`} style={btnCall}>
+              📞 Ligar
+            </a>
 
-            <TapWhatsButton
-              href={`https://wa.me/55${telefone2}?text=${mensagemBase()}`}
+            <a
+              href={`https://wa.me/${telefone2}`}
+              target="_blank"
+              style={btnZap}
             >
-              WhatsApp
-            </TapWhatsButton>
-          </TapActionRow>
-        </TapCard>
+              💬 WhatsApp
+            </a>
+          </div>
+        </div>
       )}
 
-      {!telefoneValido(telefonePrincipal) && (
-        <TapCard>
-          <p style={label}>CONTATO</p>
-          <p style={infoText}>Nenhum telefone disponível.</p>
-        </TapCard>
+      {/* OBSERVAÇÕES */}
+      {obs && (
+        <div style={card}>
+          <p style={label}>Observações</p>
+          <p>{obs}</p>
+        </div>
       )}
 
-      {data.observacoes && (
-        <TapCard>
-          <p style={label}>OBSERVAÇÕES</p>
-          <p style={infoText}>{data.observacoes}</p>
-        </TapCard>
+      {/* FALLBACK */}
+      {!telefone1 && (
+        <div style={card}>
+          <p>Nenhum telefone disponível.</p>
+        </div>
       )}
-    </TapLayout>
+    </div>
   );
 }
 
-/* estilos */
+/* 🔥 ESTILOS */
 
-const loading = {
+const container = {
+  maxWidth: "500px",
+  margin: "0 auto",
+  padding: "20px",
+};
+
+const header = {
+  background: "#ff2b2b",
+  color: "#fff",
   textAlign: "center",
-  padding: 30,
-  color: "#777",
+  padding: "40px 20px",
+  borderRadius: "0 0 30px 30px",
+};
+
+const card = {
+  background: "#f5f5f5",
+  padding: "15px",
+  borderRadius: "12px",
+  marginTop: "15px",
 };
 
 const label = {
-  margin: "0 0 10px",
-  fontSize: 13,
-  color: "#777",
-  fontWeight: 900,
-  textTransform: "uppercase",
+  fontSize: "12px",
+  color: "#666",
 };
 
-const contactName = {
-  margin: 0,
-  fontSize: 26,
-  fontWeight: 900,
+const row = {
+  display: "flex",
+  gap: "10px",
+  marginTop: "10px",
+};
+
+const btnCall = {
+  flex: 1,
+  background: "#000",
+  color: "#fff",
+  padding: "10px",
+  textAlign: "center",
+  borderRadius: "8px",
+};
+
+const btnZap = {
+  flex: 1,
+  background: "#25D366",
+  color: "#fff",
+  padding: "10px",
+  textAlign: "center",
+  borderRadius: "8px",
 };
 
 const btnLocal = {
+  marginTop: "10px",
   width: "100%",
-  marginTop: 12,
-  minHeight: 54,
-  borderRadius: 14,
-  border: "none",
-  background: "#ef1c1c",
+  background: "#ff2b2b",
   color: "#fff",
-  fontWeight: 900,
-};
-
-const infoText = {
-  margin: 0,
-  fontSize: 16,
+  padding: "12px",
+  border: "none",
+  borderRadius: "8px",
 };
