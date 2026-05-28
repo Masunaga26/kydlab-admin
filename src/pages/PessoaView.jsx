@@ -79,7 +79,7 @@ export default function PessoaView() {
     );
   }
 
-  // 🔥 CORREÇÃO iOS + ANDROID (MESMA DO PETVIEW)
+  // 🔥 FIX PROFISSIONAL iOS + ANDROID (IGUAL PETVIEW)
   function enviarLocalizacao(telefone) {
     if (!telefoneValido(telefone)) {
       alert("Telefone não disponível.");
@@ -97,8 +97,24 @@ export default function PessoaView() {
 
     setLoadingLoc(true);
 
+    let enviou = false;
+
+    // 🔥 timeout inteligente (resolve iOS 16+)
+    const timeoutFallback = setTimeout(() => {
+      if (!enviou) {
+        setLoadingLoc(false);
+        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
+        window.open(url, "_self");
+      }
+    }, 8000);
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (enviou) return;
+
+        enviou = true;
+        clearTimeout(timeoutFallback);
+
         setLoadingLoc(false);
 
         const { latitude, longitude } = pos.coords;
@@ -110,12 +126,17 @@ export default function PessoaView() {
 
         const url = `https://wa.me/55${telefone}?text=${mensagem}`;
 
-        // 🔥 essencial para iOS
+        // 🔥 ESSENCIAL PRA IOS
         setTimeout(() => {
           window.open(url, "_self");
         }, 300);
       },
       () => {
+        if (enviou) return;
+
+        enviou = true;
+        clearTimeout(timeoutFallback);
+
         setLoadingLoc(false);
 
         const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;

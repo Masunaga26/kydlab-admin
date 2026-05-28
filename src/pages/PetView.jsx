@@ -80,7 +80,7 @@ export default function PetView() {
     );
   }
 
-  // 🔥 ÚNICA PARTE ALTERADA (CORREÇÃO iOS + ANDROID)
+  // 🔥 CORREÇÃO DEFINITIVA iOS + ANDROID
   function enviarLocalizacao(telefone) {
     if (!telefoneValido(telefone)) {
       alert("Telefone não disponível.");
@@ -98,8 +98,24 @@ export default function PetView() {
 
     setLoadingLoc(true);
 
+    let enviou = false;
+
+    // 🔥 garante que o iOS tenha tempo de responder
+    const timeoutFallback = setTimeout(() => {
+      if (!enviou) {
+        setLoadingLoc(false);
+        const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
+        window.open(url, "_self");
+      }
+    }, 8000);
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (enviou) return;
+
+        enviou = true;
+        clearTimeout(timeoutFallback);
+
         setLoadingLoc(false);
 
         const { latitude, longitude } = pos.coords;
@@ -110,12 +126,16 @@ export default function PetView() {
 
         const url = `https://wa.me/55${telefone}?text=${mensagem}`;
 
-        // 🔥 iOS precisa desse delay
         setTimeout(() => {
           window.open(url, "_self");
         }, 300);
       },
       () => {
+        if (enviou) return;
+
+        enviou = true;
+        clearTimeout(timeoutFallback);
+
         setLoadingLoc(false);
 
         const url = `https://wa.me/55${telefone}?text=${mensagemBase()}`;
