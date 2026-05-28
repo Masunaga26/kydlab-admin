@@ -4,47 +4,45 @@ import { supabase } from "../supabaseClient";
 
 export default function PetView() {
   const { code } = useParams();
-  const [data, setData] = useState(null);
+  const [tag, setTag] = useState(null);
 
   useEffect(() => {
-    buscar();
+    carregar();
   }, []);
 
-  async function buscar() {
-    const { data, error } = await supabase
+  async function carregar() {
+    const { data } = await supabase
       .from("tags")
       .select("*")
       .eq("code", code)
       .single();
 
-    if (!error) setData(data);
+    setTag(data);
   }
 
-  // 🔥 LOCALIZAÇÃO FUNCIONANDO IOS + ANDROID
+  // 🚀 LOCALIZAÇÃO FUNCIONANDO IOS + ANDROID
   function enviarLocalizacao() {
-    alert("Vamos usar sua localização para ajudar no resgate");
-
     if (!navigator.geolocation) {
-      alert("Localização não suportada");
+      alert("Geolocalização não suportada");
       return;
     }
+
+    if (!confirm("Vamos usar sua localização para ajudar no resgate")) return;
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        const link = `https://maps.google.com/?q=${lat},${lng}`;
+        const linkMaps = `https://maps.google.com/?q=${lat},${lng}`;
 
-        const mensagem = `Estou com ${nomePet} em uma emergência.\nLocalização: ${link}`;
+        const texto = `Estou com ${tag?.nome || "um pet"} em uma emergência.\nLocalização: ${linkMaps}`;
 
-        if (telefone1) {
-          window.location.href = `https://wa.me/${telefone1}?text=${encodeURIComponent(
-            mensagem
-          )}`;
-        } else {
-          alert("Telefone não disponível");
-        }
+        // 🔥 solução definitiva IOS + Android
+        window.open(
+          `https://wa.me/?text=${encodeURIComponent(texto)}`,
+          "_blank"
+        );
       },
       () => {
         alert("Não foi possível obter localização");
@@ -52,119 +50,137 @@ export default function PetView() {
     );
   }
 
-  if (!data) return <div>Carregando...</div>;
-
-  // 🔥 MAPEAMENTO CORRETO DO BANCO
-  const nomePet = data.pet_nome || data.nome || "PET";
-
-  const tutor1 = data.tutor1_nome || "";
-  const telefone1 = data.tutor1_telefone || "";
-
-  const tutor2 = data.tutor2_nome || "";
-  const telefone2 = data.tutor2_telefone || "";
-
-  const obs = data.observacoes || "";
+  if (!tag) return null;
 
   return (
     <div style={container}>
-      {/* HEADER */}
-      <div style={header}>
-        <h2>Oi, me chamo</h2>
-        <h1>{nomePet}</h1>
+      <div style={content}>
+
+        {/* HEADER */}
+        <div style={header}>
+          <div style={avatar}></div>
+          <h3 style={{ opacity: 0.8 }}>Oi, me chamo</h3>
+          <h1 style={{ margin: 0 }}>{tag.nome || "PET"}</h1>
+        </div>
+
+        {/* TUTOR 1 */}
+        {tag.tutor1_nome && (
+          <div style={card}>
+            <div style={label}>TUTOR PRINCIPAL</div>
+            <div style={nome}>{tag.tutor1_nome}</div>
+
+            <div style={row}>
+              {tag.tutor1_telefone && (
+                <a href={`tel:${tag.tutor1_telefone}`} style={btnCall}>
+                  📞 Ligar
+                </a>
+              )}
+
+              {tag.tutor1_telefone && (
+                <a
+                  href={`https://wa.me/55${tag.tutor1_telefone}`}
+                  target="_blank"
+                  style={btnWhats}
+                >
+                  💬 WhatsApp
+                </a>
+              )}
+            </div>
+
+            <button style={btnLocation} onClick={enviarLocalizacao}>
+              📍 Enviar localização
+            </button>
+          </div>
+        )}
+
+        {/* TUTOR 2 */}
+        {tag.tutor2_nome && (
+          <div style={card}>
+            <div style={label}>CONTATO ALTERNATIVO</div>
+            <div style={nome}>{tag.tutor2_nome}</div>
+
+            <div style={row}>
+              {tag.tutor2_telefone && (
+                <a href={`tel:${tag.tutor2_telefone}`} style={btnCall}>
+                  📞 Ligar
+                </a>
+              )}
+
+              {tag.tutor2_telefone && (
+                <a
+                  href={`https://wa.me/55${tag.tutor2_telefone}`}
+                  target="_blank"
+                  style={btnWhats}
+                >
+                  💬 WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* OBSERVAÇÕES */}
+        {tag.observacoes && (
+          <div style={card}>
+            <div style={label}>OBSERVAÇÕES</div>
+            <div>{tag.observacoes}</div>
+          </div>
+        )}
+
       </div>
-
-      {/* TUTOR 1 */}
-      {telefone1 && (
-        <div style={card}>
-          <p style={label}>Tutor principal</p>
-          <h3>{tutor1}</h3>
-
-          <div style={row}>
-            <a href={`tel:${telefone1}`} style={btnCall}>
-              📞 Ligar
-            </a>
-
-            <a
-              href={`https://wa.me/${telefone1}`}
-              target="_blank"
-              style={btnZap}
-            >
-              💬 WhatsApp
-            </a>
-          </div>
-
-          <button style={btnLocal} onClick={enviarLocalizacao}>
-            📍 Enviar localização
-          </button>
-        </div>
-      )}
-
-      {/* TUTOR 2 */}
-      {telefone2 && (
-        <div style={card}>
-          <p style={label}>Contato alternativo</p>
-          <h3>{tutor2}</h3>
-
-          <div style={row}>
-            <a href={`tel:${telefone2}`} style={btnCall}>
-              📞 Ligar
-            </a>
-
-            <a
-              href={`https://wa.me/${telefone2}`}
-              target="_blank"
-              style={btnZap}
-            >
-              💬 WhatsApp
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* OBSERVAÇÕES */}
-      {obs && (
-        <div style={card}>
-          <p style={label}>Observações</p>
-          <p>{obs}</p>
-        </div>
-      )}
-
-      {/* FALLBACK */}
-      {!telefone1 && (
-        <div style={card}>
-          <p>Nenhum telefone disponível.</p>
-        </div>
-      )}
     </div>
   );
 }
 
-/* 🔥 ESTILOS (mantidos simples e iguais ao seu padrão) */
+/* 🎨 ESTILO FINAL (SEU PADRÃO BONITO) */
 
 const container = {
-  maxWidth: "500px",
-  margin: "0 auto",
+  display: "flex",
+  justifyContent: "center",
+  background: "#f4f4f4",
+  minHeight: "100vh",
   padding: "20px",
 };
 
+const content = {
+  width: "100%",
+  maxWidth: "420px",
+};
+
 const header = {
-  background: "#ff2b2b",
+  background: "#ef1c1c",
   color: "#fff",
+  padding: "30px 20px",
+  borderRadius: "20px 20px 40px 40px",
   textAlign: "center",
-  padding: "40px 20px",
-  borderRadius: "0 0 30px 30px",
+  marginBottom: "20px",
+};
+
+const avatar = {
+  width: "90px",
+  height: "90px",
+  borderRadius: "50%",
+  background: "#fff3",
+  margin: "0 auto 10px",
 };
 
 const card = {
-  background: "#f5f5f5",
-  padding: "15px",
-  borderRadius: "12px",
-  marginTop: "15px",
+  background: "#fff",
+  padding: "18px",
+  borderRadius: "16px",
+  marginBottom: "15px",
+  boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
 };
 
 const label = {
   fontSize: "12px",
-  color: "#666",
+  color: "#777",
+  marginBottom: "5px",
+};
+
+const nome = {
+  fontSize: "18px",
+  fontWeight: "bold",
 };
 
 const row = {
@@ -177,26 +193,28 @@ const btnCall = {
   flex: 1,
   background: "#000",
   color: "#fff",
-  padding: "10px",
-  textAlign: "center",
+  padding: "12px",
   borderRadius: "8px",
+  textAlign: "center",
+  textDecoration: "none",
 };
 
-const btnZap = {
+const btnWhats = {
   flex: 1,
   background: "#25D366",
   color: "#fff",
-  padding: "10px",
-  textAlign: "center",
+  padding: "12px",
   borderRadius: "8px",
+  textAlign: "center",
+  textDecoration: "none",
 };
 
-const btnLocal = {
-  marginTop: "10px",
+const btnLocation = {
   width: "100%",
-  background: "#ff2b2b",
+  background: "#ef1c1c",
   color: "#fff",
-  padding: "12px",
+  padding: "14px",
+  borderRadius: "10px",
   border: "none",
-  borderRadius: "8px",
+  marginTop: "10px",
 };
