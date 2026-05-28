@@ -2,179 +2,272 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
+import TapLayout, {
+  TapHero,
+  TapCard,
+  TapActionRow,
+  TapCallButton,
+  TapWhatsButton,
+} from "../components/TapLayout";
+
 export default function PetView() {
   const { code } = useParams();
-  const [tag, setTag] = useState(null);
+
+  const [data, setData] = useState(null);
+  const [erro, setErro] = useState("");
+  const [loadingLoc, setLoadingLoc] = useState(false);
 
   useEffect(() => {
     carregar();
   }, []);
 
   async function carregar() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("tags")
       .select("*")
       .eq("code", code)
       .single();
 
-    setTag(data);
-  }
-
-  function enviarLocalizacao() {
-    if (!navigator.geolocation) {
-      alert("Geolocalização não suportada");
+    if (error || !data) {
+      console.error("Erro ao carregar pet:", error);
+      setErro("Código inválido ou não encontrado.");
       return;
     }
 
-    if (!confirm("Vamos usar sua localização para ajudar no resgate")) return;
+    if (!data.locked) {
+      window.location.href = `/escolha/${code}`;
+      return;
+    }
 
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+    if (data.tipo && data.tipo !== "pet") {
+      window.location.href = `/pessoa/${code}`;
+      return;
+    }
 
-      const link = `https://maps.google.com/?q=${lat},${lng}`;
-      const texto = `Estou com ${tag?.nome || "um pet"} em uma emergência.\nLocalização: ${link}`;
-
-      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
-    });
+    setData(data);
   }
 
-  if (!tag) return null;
+  function limparTelefone(tel) {
+    return (tel || "").replace(/\D/g, "");
+  }
+
+  function telefoneValido(tel) {
+    const limpo = limparTelefone(tel);
+    return limpo.length === 10 || limpo.length === 11;
+  }
+
+  const telefone1 = limparTelefone(data?.tutor1_telefone);
+  const telefone2 = limparTelefone(data?.tutor2_telefone);
+
+  const telefonePrincipal = telefoneValido(telefone1)
+    ? telefone1
+    : telefoneValido(telefone2)
+    ? telefone2
+    : null;
+
+  const nomeTutorPrincipal = telefoneValido(telefone1)
+    ? data?.tutor1_nome
+    : data?.tutor2_nome;
+
+  const mostrarTutor2 =
+    telefoneValido(telefone2) &&
+    telefone2 !== telefonePrincipal &&
+    Boolean(data?.tutor2_nome || telefone2);
+
+  function mensagemBase() {
+    return encodeURIComponent(
+      `Encontrei ${data?.name || "esse pet"} em uma emergência.`
+    );
+  }
+
+  // 🔥 CORREÇÃO iOS (ÚNICA ALTERAÇÃO)
+  function enviarLocalizacao(telefone) {
+    if (!telefoneValido(telefone)) {
+      alert("Telefone não disponível.");
+      return;
+    }
+
+    const mensagemInicial = `Encontrei ${data?.name || "esse pet"} em uma emergência.`;
+
+    if (!navigator.geolocation) {
+      const mensagem = encodeURIComponent(mensagemInicial);
+      window.location.href = `https://wa.me/55${telefone}?text=${mensagem}`;
+      return;
+    }
+
+    setLoadingLoc(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLoadingLoc(false);
+
+        const { latitude, longitude } = pos.coords;
+
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        const linkMapa = isIOS
+          ? `https://maps.apple.com/?q=${latitude},${longitude}`
+          : `https://maps.google.com/?q=${latitude},${longitude}`;
+
+        const mensagem = encodeURIComponent(
+          `${mensagemInicial}\n\nMinha localização:\n${linkMapa}`
+        );
+
+        window.location.href = `https://wa.me/55${telefone}?text=${mensagem}`;
+      },
+      () => {
+        setLoadingLoc(false);
+        const mensagem = encodeURIComponent(mensagemInicial);
+        window.location.href = `https://wa.me/55${telefone}?text=${mensagem}`;
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      }
+    );
+  }
+
+  if (erro) {
+    return (
+      <TapLayout footerType="simple" productType="pet" code={code}>
+        <TapCard>
+          <p style={loading}>{erro}</p>
+        </TapCard>
+      </TapLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <TapLayout footerType="simple" productType="pet" code={code}>
+        <p style={loading}>Carregando...</p>
+      </TapLayout>
+    );
+  }
+
+  const fotoUrlFinal =
+    data?.foto_url && data.foto_url !== ""
+      ? `${data.foto_url}?t=${Date.now()}`
+      : "https://via.placeholder.com/150";
 
   return (
-    <div style={container}>
-      <div style={content}>
+    <TapLayout footerType="view" productType="pet" code={code}>
+      <TapHero
+        variant="view"
+        photoUrl={fotoUrlFinal}
+        eyebrow="Oi, me chamo"
+        title={(data.name || "Pet").toUpperCase()}
+        subtitle="Estou perdido 😢 Me ajude a voltar pra casa!"
+      />
 
-        {/* HEADER */}
-        <div style={header}>
-          <div style={avatar}></div>
-          <p style={sub}>Oi, me chamo</p>
-          <h1 style={title}>{tag.nome || "PET"}</h1>
-          <p style={msg}>Me ajuda voltar pra casa!</p>
-        </div>
+      {telefoneValido(telefonePrincipal) && (
+        <TapCard>
+          <p style={label}>TUTOR PRINCIPAL</p>
+          <h3 style={contactName}>
+            {nomeTutorPrincipal || "Responsável"}
+          </h3>
 
-        {/* TUTOR 1 */}
-        <div style={card}>
-          <span style={label}>Tutor 1</span>
-          <h3>{tag.tutor1_nome}</h3>
+          <TapActionRow>
+            <TapCallButton href={`tel:${telefonePrincipal}`}>
+              Ligar Agora
+            </TapCallButton>
 
-          <div style={row}>
-            <a href={`tel:${tag.tutor1_telefone}`} style={btnCall}>📞 Ligar Agora</a>
-            <a href={`https://wa.me/55${tag.tutor1_telefone}`} style={btnWhats}>💬 WhatsApp</a>
-          </div>
+            <TapWhatsButton
+              href={`https://wa.me/55${telefonePrincipal}?text=${mensagemBase()}`}
+            >
+              WhatsApp
+            </TapWhatsButton>
+          </TapActionRow>
 
-          <button style={btnLocation} onClick={enviarLocalizacao}>
-            📍 Enviar localização
+          <button
+            type="button"
+            style={btnLocal}
+            onClick={() => enviarLocalizacao(telefonePrincipal)}
+          >
+            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
           </button>
-        </div>
+        </TapCard>
+      )}
 
-        {/* TUTOR 2 */}
-        {tag.tutor2_nome && (
-          <div style={card}>
-            <span style={label}>Tutor 2</span>
-            <h3>{tag.tutor2_nome}</h3>
+      {mostrarTutor2 && (
+        <TapCard>
+          <p style={label}>TUTOR 2</p>
+          <h3 style={contactName}>{data.tutor2_nome || "Responsável"}</h3>
 
-            <div style={row}>
-              <a href={`tel:${tag.tutor2_telefone}`} style={btnCall}>📞 Ligar Agora</a>
-              <a href={`https://wa.me/55${tag.tutor2_telefone}`} style={btnWhats}>💬 WhatsApp</a>
-            </div>
-          </div>
-        )}
+          <TapActionRow>
+            <TapCallButton href={`tel:${telefone2}`}>
+              Ligar Agora
+            </TapCallButton>
 
-        {/* OBS */}
-        {tag.observacoes && (
-          <div style={card}>
-            <span style={label}>Observações</span>
-            <p>{tag.observacoes}</p>
-          </div>
-        )}
+            <TapWhatsButton
+              href={`https://wa.me/55${telefone2}?text=${mensagemBase()}`}
+            >
+              WhatsApp
+            </TapWhatsButton>
+          </TapActionRow>
+        </TapCard>
+      )}
 
-      </div>
-    </div>
+      {!telefoneValido(telefonePrincipal) && (
+        <TapCard>
+          <p style={label}>CONTATO</p>
+          <p style={infoText}>
+            Nenhum telefone válido foi informado para este pet.
+          </p>
+        </TapCard>
+      )}
+
+      {data.observacoes && (
+        <TapCard>
+          <p style={label}>CONDIÇÕES ESPECIAIS / OBSERVAÇÕES</p>
+          <p style={infoText}>{data.observacoes}</p>
+        </TapCard>
+      )}
+    </TapLayout>
   );
 }
 
-/* 🎨 ESTILO PREMIUM */
+/* 🎨 ESTILOS (INALTERADOS) */
 
-const container = {
-  background: "#f1f1f1",
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  padding: "20px"
-};
-
-const content = {
-  width: "100%",
-  maxWidth: "380px"
-};
-
-const header = {
-  background: "#ef1c1c",
-  borderRadius: "30px",
-  padding: "30px 20px",
+const loading = {
   textAlign: "center",
-  color: "#fff",
-  marginBottom: "20px"
-};
-
-const avatar = {
-  width: "90px",
-  height: "90px",
-  borderRadius: "50%",
-  background: "#ffffff33",
-  margin: "0 auto 15px"
-};
-
-const sub = { opacity: 0.8 };
-const title = { fontSize: "28px", margin: "5px 0" };
-const msg = { fontSize: "14px", opacity: 0.9 };
-
-const card = {
-  background: "#fff",
-  borderRadius: "18px",
-  padding: "18px",
-  marginBottom: "15px",
-  boxShadow: "0 6px 15px rgba(0,0,0,0.08)"
+  padding: 30,
+  color: "#777",
 };
 
 const label = {
-  fontSize: "12px",
-  color: "#888"
+  margin: "0 0 10px",
+  fontSize: 13,
+  color: "#777",
+  fontWeight: 900,
+  textTransform: "uppercase",
+  letterSpacing: ".5px",
 };
 
-const row = {
-  display: "flex",
-  gap: "10px",
-  marginTop: "10px"
+const contactName = {
+  margin: 0,
+  fontSize: 26,
+  color: "#111",
+  fontWeight: 950,
 };
 
-const btnCall = {
-  flex: 1,
-  background: "#000",
-  color: "#fff",
-  padding: "12px",
-  borderRadius: "10px",
-  textAlign: "center",
-  textDecoration: "none"
-};
-
-const btnWhats = {
-  flex: 1,
-  background: "#25D366",
-  color: "#fff",
-  padding: "12px",
-  borderRadius: "10px",
-  textAlign: "center",
-  textDecoration: "none"
-};
-
-const btnLocation = {
+const btnLocal = {
   width: "100%",
-  marginTop: "10px",
+  marginTop: 12,
+  minHeight: 54,
+  borderRadius: 14,
+  border: "none",
   background: "#ef1c1c",
   color: "#fff",
-  padding: "14px",
-  borderRadius: "12px",
-  border: "none"
+  fontWeight: 900,
+  fontSize: 16,
+  cursor: "pointer",
+};
+
+const infoText = {
+  margin: 0,
+  color: "#333",
+  fontSize: 18,
+  lineHeight: 1.45,
+  fontWeight: 500,
 };

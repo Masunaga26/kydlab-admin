@@ -1,16 +1,25 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { generateA3PDF } from "../utils/generateA3PDF";
 import * as XLSX from "xlsx";
+import QRCode from "qrcode";
+
+const BASE_URL = "https://app.kydlab.com.br";
+const QTD_QR_A3 = 125;
 
 export default function Admin() {
   const [tags, setTags] = useState([]);
-  const [busca, setBusca] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [gerandoA3, setGerandoA3] = useState(false);
 
   useEffect(() => {
-    carregarTags();
+    fetchData();
   }, []);
 
-  async function carregarTags() {
+  async function fetchData() {
+    setLoading(true);
+
     let allData = [];
     let from = 0;
     let to = 999;
@@ -19,282 +28,232 @@ export default function Admin() {
       const { data, error } = await supabase
         .from("tags")
         .select("*")
+        .order("created_at", { ascending: false })
         .range(from, to);
 
-      if (error) break;
+      if (error) {
+        alert("Erro ao carregar códigos");
+        setLoading(false);
+        return;
+      }
 
-      allData = [...allData, ...data];
+      allData = [...allData, ...(data || [])];
 
-      if (data.length < 1000) break;
+      if (!data || data.length < 1000) break;
 
       from += 1000;
       to += 1000;
     }
 
     setTags(allData);
+    setLoading(false);
   }
 
-  // STATUS
+  async function sairAdmin() {
+    await supabase.auth.signOut();
+    localStorage.removeItem("kyd_admin_auth");
+    window.location.href = "/login";
+  }
+
+  // 🔥 CORRIGIDO (pet + pessoa)
   function getStatus(t) {
     if (t.locked) return "Cadastrado";
-    if (t.tutor1_nome) return "Vinculado";
+    if (t.name || t.tutor1_nome) return "Vinculado";
     if (t.printed) return "Impresso";
     return "Disponível";
-  }
-
-  function getNome(t) {
-    return t.tutor1_nome || "-";
   }
 
   function getTelefone(t) {
     return t.tutor1_telefone || t.tutor2_telefone || "-";
   }
 
+  // 🔥 CORRIGIDO
+  function getNomePrincipal(t) {
+    return t.name || t.tutor1_nome || t.tutor2_nome || "-";
+  }
+
   function gerarUrlQR(code) {
-    return `https://app.kydlab.com.br/qr/${code}`;
+    return `${BASE_URL}/qr/${code}`;
   }
 
   function gerarUrlNFC(code) {
-    return `https://app.kydlab.com.br/nfc/${code}`;
+    return `${BASE_URL}/nfc/${code}`;
   }
 
-  // 🔥 EXPORTAR XLS REAL
-  function exportarXLS() {
-    const dataExport = tags.map((t) => ({
-      Código: t.code,
-      Status: getStatus(t),
-      Tipo: t.tipo,
-      Nome: t.tutor1_nome,
-      Telefone: t.tutor1_telefone,
-      Contato2_Nome: t.tutor2_nome,
-      Contato2_Telefone: t.tutor2_telefone,
-      Observações: t.observacoes,
-      URL_QR: gerarUrlQR(t.code),
-      URL_NFC: gerarUrlNFC(t.code),
-      Criado_em: t.created_at,
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(dataExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Tags");
-
-    XLSX.writeFile(workbook, "kydlab_tags.xlsx");
+  function editar(tag) {
+    window.location.href = `/admin/edit/${tag.code}`;
   }
 
-  // 🔥 BAIXAR QR
-  function baixarQR(code) {
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${gerarUrlQR(
-      code
-    )}`;
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${code}.png`;
-    link.click();
-  }
-
-  // LIMPAR
-  async function limparTag(id) {
-    const confirmar = confirm("Deseja limpar esse cadastro?");
-    if (!confirmar) return;
+  async function limpar(tag) {
+    if (!confirm(`Limpar código ${tag.code}?`)) return;
 
     await supabase
       .from("tags")
       .update({
+        locked: false,
+        name: null,
+        tipo: null,
         tutor1_nome: null,
         tutor1_telefone: null,
         tutor2_nome: null,
         tutor2_telefone: null,
+        foto_url: null,
+        data_nascimento: null,
+        tipo_sanguineo: null,
+        comorbidades: null,
+        alergias: null,
+        medicamentos: null,
         observacoes: null,
-        locked: false,
       })
-      .eq("id", id);
+      .eq("code", tag.code);
 
-    carregarTags();
+    fetchData();
   }
 
-  // CONTADORES
-  const total = tags.length;
-  const cadastrados = tags.filter((t) => t.locked).length;
-  const disponiveis = tags.filter((t) => !t.locked).length;
-  const impressos = tags.filter((t) => t.printed).length;
+  async function baixarQR(tag) {
+    const url = gerarUrlQR(tag.code);
 
-  const filtrados = tags.filter((tag) =>
-    (tag.code || "").toLowerCase().includes(busca.toLowerCase())
-  );
+    const qrDataUrl = await QRCode.toDataURL(url, {
+      width: 1000,
+      margin: 2,
+    });
+
+    const link = document.createElement("a");
+    link.href = qrDataUrl;
+    link.download = `QR_${tag.code}.png`;
+    link.click();
+  }
+
+  function exportXLS() {
+    const dados = tags.map((t) => ({
+      Código: t.code,
+      Status: getStatus(t),
+      Tipo: t.tipo || "-",
+      Nome: getNomePrincipal(t),
+      Telefone: getTelefone(t),
+      "Contato 1": t.tutor1_nome || "-",
+      "Telefone 1": t.tutor1_telefone || "-",
+      "Contato 2": t.tutor2_nome || "-",
+      "Telefone 2": t.tutor2_telefone || "-",
+      Observações: t.observacoes || "-",
+      "URL QR": gerarUrlQR(t.code),
+      "URL NFC": gerarUrlNFC(t.code),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dados);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Tags");
+    XLSX.writeFile(wb, "tags_kydlab.xlsx");
+  }
+
+  const filtered = tags.filter((t) => {
+    const termo = search.toLowerCase();
+
+    return (
+      String(t.code || "").toLowerCase().includes(termo) ||
+      String(t.name || "").toLowerCase().includes(termo) ||
+      String(t.tutor1_nome || "").toLowerCase().includes(termo)
+    );
+  });
 
   return (
-    <div style={container}>
-      <h1>🛠 Admin KYDLAB</h1>
+    <div style={page}>
+      <div style={shell}>
 
-      {/* DASHBOARD */}
-      <div style={dashboard}>
-        <Card titulo="Total" valor={total} />
-        <Card titulo="Cadastrados" valor={cadastrados} />
-        <Card titulo="Disponíveis" valor={disponiveis} />
-        <Card titulo="Impressos" valor={impressos} />
+        <header style={header}>
+          <div>
+            <h1 style={title}>Admin KYD LAB</h1>
+          </div>
+
+          <button onClick={sairAdmin} style={logoutButton}>
+            Sair
+          </button>
+        </header>
+
+        <div style={toolbar}>
+          <button onClick={exportXLS} style={buttonDark}>
+            📥 Exportar XLS
+          </button>
+
+          <button onClick={gerarA3} style={buttonRed}>
+            📄 Gerar A3
+          </button>
+        </div>
+
+        <input
+          placeholder="Buscar..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={searchInput}
+        />
+
+        {loading ? (
+          <p>Carregando...</p>
+        ) : (
+          <table style={table}>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Status</th>
+                <th>Tipo</th>
+                <th>Nome</th>
+                <th>Telefone</th>
+                <th>QR</th>
+                <th>NFC</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filtered.map((tag) => (
+                <tr key={tag.code}>
+                  <td>{tag.code}</td>
+                  <td>{getStatus(tag)}</td>
+                  <td>{tag.tipo || "-"}</td>
+                  <td>{getNomePrincipal(tag)}</td>
+                  <td>{getTelefone(tag)}</td>
+
+                  <td>
+                    <a href={gerarUrlQR(tag.code)} target="_blank">
+                      Abrir
+                    </a>
+                  </td>
+
+                  <td>
+                    <a href={gerarUrlNFC(tag.code)} target="_blank">
+                      Abrir
+                    </a>
+                  </td>
+
+                  <td>
+                    <button onClick={() => baixarQR(tag)}>⬇</button>
+                    <button onClick={() => editar(tag)}>✏️</button>
+                    <button onClick={() => limpar(tag)}>🧹</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-
-      {/* AÇÕES */}
-      <div style={acoes}>
-        <button style={btnMain} onClick={exportarXLS}>
-          📄 Exportar XLS
-        </button>
-
-        <button style={btnA3}>
-          🧾 Gerar A3 (125 QR)
-        </button>
-      </div>
-
-      <input
-        placeholder="Buscar código..."
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        style={input}
-      />
-
-      <table style={table}>
-        <thead>
-          <tr>
-            <th style={th}>Código</th>
-            <th style={th}>Status</th>
-            <th style={th}>Tipo</th>
-            <th style={th}>Nome</th>
-            <th style={th}>Telefone</th>
-            <th style={th}>QR</th>
-            <th style={th}>NFC</th>
-            <th style={th}>Ações</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {filtrados.map((t) => (
-            <tr key={t.id}>
-              <td style={td}>{t.code}</td>
-              <td style={td}>{getStatus(t)}</td>
-              <td style={td}>{t.tipo || "-"}</td>
-              <td style={td}>{getNome(t)}</td>
-              <td style={td}>{getTelefone(t)}</td>
-
-              <td style={td}>
-                <a href={gerarUrlQR(t.code)} target="_blank">
-                  Abrir
-                </a>
-              </td>
-
-              <td style={td}>
-                <a href={gerarUrlNFC(t.code)} target="_blank">
-                  Abrir
-                </a>
-              </td>
-
-              <td style={td}>
-                <button style={btnQR} onClick={() => baixarQR(t.code)}>
-                  ⬇ QR
-                </button>
-
-                <button style={btnDelete} onClick={() => limparTag(t.id)}>
-                  🗑
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
 
-/* COMPONENTES */
+/* estilos mantidos simples */
 
-function Card({ titulo, valor }) {
-  return (
-    <div style={cardDash}>
-      <h4>{titulo}</h4>
-      <h2>{valor}</h2>
-    </div>
-  );
-}
+const page = { padding: 20 };
+const shell = { maxWidth: 1200, margin: "0 auto" };
+const header = { display: "flex", justifyContent: "space-between" };
+const title = { fontSize: 28 };
+const logoutButton = { padding: 10 };
 
-/* ESTILOS */
+const toolbar = { margin: "20px 0" };
 
-const container = {
-  maxWidth: "1400px",
-  margin: "0 auto",
-  padding: "20px",
-};
+const buttonDark = { padding: 10, marginRight: 10 };
+const buttonRed = { padding: 10 };
 
-const dashboard = {
-  display: "flex",
-  gap: "15px",
-  marginBottom: "20px",
-};
+const searchInput = { width: "100%", padding: 10, marginBottom: 20 };
 
-const cardDash = {
-  flex: 1,
-  background: "#f5f5f5",
-  padding: "15px",
-  borderRadius: "10px",
-  textAlign: "center",
-};
-
-const acoes = {
-  display: "flex",
-  gap: "10px",
-  marginBottom: "20px",
-};
-
-const btnMain = {
-  background: "#ff3b3b",
-  color: "#fff",
-  padding: "12px",
-  border: "none",
-  borderRadius: "8px",
-};
-
-const btnA3 = {
-  background: "#000",
-  color: "#fff",
-  padding: "12px",
-  border: "none",
-  borderRadius: "8px",
-};
-
-const input = {
-  width: "100%",
-  padding: "10px",
-  marginBottom: "20px",
-};
-
-const table = {
-  width: "100%",
-  borderCollapse: "collapse",
-};
-
-const th = {
-  padding: "10px",
-  border: "1px solid #ddd",
-  background: "#eee",
-};
-
-const td = {
-  padding: "10px",
-  border: "1px solid #ddd",
-};
-
-const btnQR = {
-  marginRight: "5px",
-  background: "#444",
-  color: "#fff",
-  border: "none",
-  padding: "6px",
-  borderRadius: "6px",
-};
-
-const btnDelete = {
-  background: "#e74c3c",
-  color: "#fff",
-  border: "none",
-  padding: "6px",
-  borderRadius: "6px",
-};
+const table = { width: "100%", borderCollapse: "collapse" };
