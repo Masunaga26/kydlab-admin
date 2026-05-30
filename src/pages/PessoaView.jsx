@@ -2,181 +2,208 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-import TapLayout, {
-  TapCard,
-  TapSectionTitle,
-  TapActionRow,
-  TapCallButton,
-  TapWhatsButton,
-} from "../components/TapLayout";
-
 export default function PessoaView() {
   const { code } = useParams();
-
   const [data, setData] = useState(null);
-  const [erro, setErro] = useState("");
-  const [loadingLoc, setLoadingLoc] = useState(false);
 
   useEffect(() => {
-    carregar();
-  }, []);
+    async function fetchData() {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*")
+        .eq("code", code)
+        .single();
 
-  async function carregar() {
-    const { data, error } = await supabase
-      .from("tags")
-      .select("*")
-      .eq("code", code)
-      .single();
-
-    if (error || !data) {
-      console.error("Erro ao carregar pessoa:", error);
-      setErro("Código inválido ou não encontrado.");
-      return;
+      if (!error && data) setData(data);
     }
 
-    if (!data.locked) {
-      window.location.href = `/escolha/${code}`;
-      return;
-    }
+    fetchData();
+  }, [code]);
 
-    if (data.tipo && data.tipo !== "pessoa") {
-      window.location.href = `/pet/${code}`;
-      return;
-    }
+  if (!data) return null;
 
-    setData(data);
-  }
+  // 🔥 CORREÇÃO AQUI
+  const nome = data?.name || "Pessoa";
 
-  function limparTelefone(tel) {
-    return (tel || "").replace(/\D/g, "");
-  }
+  const foto = data?.foto_url || "";
+  const tipo = data?.tipo_sanguineo || "-";
+  const nascimento = data?.data_nascimento;
 
-  function telefoneValido(tel) {
-    const limpo = limparTelefone(tel);
-    return limpo.length === 10 || limpo.length === 11;
-  }
+  const contato1 = data?.contato1_nome || "Contato principal";
+  const contato2 = data?.contato2_nome || "Contato 2";
+  const tel1 = data?.telefone1 || "";
+  const tel2 = data?.telefone2 || "";
 
-  function calcularIdade(dataNascimento) {
-    if (!dataNascimento) return null;
+  const alergias = data?.alergias || "-";
+  const medicamentos = data?.medicamentos || "-";
+  const obs = data?.observacoes || "-";
 
-    const hoje = new Date();
-    const nasc = new Date(dataNascimento);
-
-    if (Number.isNaN(nasc.getTime())) return null;
-
-    let idade = hoje.getFullYear() - nasc.getFullYear();
-    const m = hoje.getMonth() - nasc.getMonth();
-
-    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
-      idade--;
-    }
-
-    if (idade < 0 || idade > 120) return null;
-
-    return idade;
-  }
-
-  // ✅ PROTEÇÃO (ESSA LINHA RESOLVE O CRASH)
-  if (!data && !erro) {
-    return (
-      <TapLayout footerType="simple" productType="pessoa" code={code}>
-        <p style={loading}>Carregando...</p>
-      </TapLayout>
-    );
-  }
-
-  if (erro) {
-    return (
-      <TapLayout footerType="simple" productType="pessoa" code={code}>
-        <TapCard>
-          <p style={loading}>{erro}</p>
-        </TapCard>
-      </TapLayout>
-    );
-  }
-
-  // 👇 AGORA SIM seguro usar data
-  const telefone1 = limparTelefone(data?.tutor1_telefone);
-  const telefone2 = limparTelefone(data?.tutor2_telefone);
-
-  const telefonePrincipal = telefoneValido(telefone1)
-    ? telefone1
-    : telefoneValido(telefone2)
-    ? telefone2
+  const idade = nascimento
+    ? Math.floor((new Date() - new Date(nascimento)) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
 
-  const nomeContatoPrincipal = telefoneValido(telefone1)
-    ? data?.tutor1_nome
-    : data?.tutor2_nome;
+  const formatTel = (tel) => tel?.replace(/\D/g, "");
 
-  const mostrarContato2 =
-    telefoneValido(telefone2) &&
-    telefone2 !== telefonePrincipal &&
-    Boolean(data?.tutor2_nome || telefone2);
-
-  function mensagemBase() {
-    return encodeURIComponent(
-      `Estou com ${data?.name || "essa pessoa"} em uma emergência.`
-    );
-  }
-
-  function enviarLocalizacao(telefone) {
-    if (!telefoneValido(telefone)) {
-      alert("Telefone não disponível.");
-      return;
-    }
-
-    const mensagemInicial = `Estou com ${data?.name || "essa pessoa"} em uma emergência.`;
-
-    if (!navigator.geolocation) {
-      const mensagem = encodeURIComponent(mensagemInicial);
-      window.location.href = `https://wa.me/55${telefone}?text=${mensagem}`;
-      return;
-    }
-
-    setLoadingLoc(true);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLoadingLoc(false);
-
-        const { latitude, longitude } = pos.coords;
-
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-        const linkMapa = isIOS
-          ? `https://maps.apple.com/?q=${latitude},${longitude}`
-          : `https://maps.google.com/?q=${latitude},${longitude}`;
-
-        const mensagem = encodeURIComponent(
-          `${mensagemInicial}\n\nMinha localização:\n${linkMapa}`
-        );
-
-        window.location.href = `https://wa.me/55${telefone}?text=${mensagem}`;
-      },
-      () => {
-        setLoadingLoc(false);
-
-        const mensagem = encodeURIComponent(mensagemInicial);
-        window.location.href = `https://wa.me/55${telefone}?text=${mensagem}`;
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-      }
-    );
-  }
-
-  const idade = calcularIdade(data.data_nascimento);
-
-  const fotoUrl =
-    data?.foto_url && data.foto_url !== ""
-      ? `${data.foto_url}?t=${Date.now()}`
-      : "https://via.placeholder.com/150";
+  const enviarLocalizacao = () => {
+    navigator.geolocation?.getCurrentPosition((pos) => {
+      const url = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+      window.open(url);
+    });
+  };
 
   return (
-    <TapLayout footerType="view" productType="pessoa" code={code}>
-      {/* TODO: resto do layout permanece EXATAMENTE igual */}
-    </TapLayout>
+    <div style={{ background: "#f2f2f2", minHeight: "100vh", padding: 20 }}>
+      <div style={{ maxWidth: 420, margin: "0 auto" }}>
+
+        {/* 🔴 HEADER */}
+        <div style={{
+          background: "#ff1c1c",
+          borderRadius: 24,
+          padding: 24,
+          textAlign: "center",
+          color: "#fff"
+        }}>
+          <div style={{
+            width: 110,
+            height: 110,
+            borderRadius: "50%",
+            background: "#fff",
+            margin: "0 auto 12px",
+            overflow: "hidden",
+            border: "4px solid rgba(255,255,255,0.4)"
+          }}>
+            {foto
+              ? <img src={foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <div style={{ lineHeight: "110px" }}>👤</div>
+            }
+          </div>
+
+          <div style={{ fontSize: 12 }}>FICHA MÉDICA DE EMERGÊNCIA</div>
+
+          <h2 style={{ margin: "6px 0", fontSize: 22 }}>
+            {nome}
+          </h2>
+
+          <div style={{ display: "flex", justifyContent: "center", gap: 15, fontSize: 14 }}>
+            {idade && <div>🎂 {idade} anos</div>}
+            <div>🩸 {tipo}</div>
+          </div>
+
+          <div style={{ marginTop: 10, fontSize: 13 }}>
+            🚨 Em caso de emergência, use as informações abaixo para ajudar no contato.
+          </div>
+        </div>
+
+        {/* 🚑 SAMU */}
+        <a href="tel:192" style={btnSamu}>
+          📞 Ligar SAMU (192)
+        </a>
+
+        {/* CONTATO 1 */}
+        <div style={card}>
+          <small>Contato principal</small>
+          <h3>{contato1}</h3>
+
+          <div style={row}>
+            <a href={`tel:${tel1}`} style={btnRedSmall}>📞 Ligar Agora</a>
+            <a href={`https://wa.me/${formatTel(tel1)}`} style={btnOutline}>WhatsApp</a>
+          </div>
+
+          <button style={btnRed} onClick={enviarLocalizacao}>
+            📍 Enviar localização
+          </button>
+        </div>
+
+        {/* CONTATO 2 */}
+        <div style={card}>
+          <small>Contato 2</small>
+          <h3>{contato2}</h3>
+
+          <div style={row}>
+            <a href={`tel:${tel2}`} style={btnRedSmall}>📞 Ligar Agora</a>
+            <a href={`https://wa.me/${formatTel(tel2)}`} style={btnOutline}>WhatsApp</a>
+          </div>
+        </div>
+
+        {/* DADOS */}
+        <div style={card}><b>Alergias</b><br />{alergias}</div>
+        <div style={card}><b>Medicamentos</b><br />{medicamentos}</div>
+        <div style={card}><b>Observações</b><br />{obs}</div>
+
+        {/* RODAPÉ */}
+        <div style={{ textAlign: "center", marginTop: 30, fontSize: 12, opacity: 0.7 }}>
+          <div>Dados para uso em emergências.</div>
+          <div>Problemas ou dúvidas:</div>
+
+          <a
+            href="https://wa.me/SEUNUMEROAQUI"
+            style={{ color: "#25d366", textDecoration: "none" }}
+          >
+            Suporte via WhatsApp
+          </a>
+
+          <div style={{ marginTop: 10 }}>
+            TAP QR — Identificação de Emergência
+          </div>
+        </div>
+
+      </div>
+    </div>
   );
 }
+
+// estilos
+const card = {
+  background: "#fff",
+  padding: 16,
+  borderRadius: 16,
+  marginTop: 16,
+  boxShadow: "0 2px 10px rgba(0,0,0,0.1)"
+};
+
+const row = {
+  display: "flex",
+  gap: 10,
+  marginTop: 10
+};
+
+const btnRedSmall = {
+  flex: 1,
+  background: "#000",
+  color: "#fff",
+  padding: 10,
+  borderRadius: 8,
+  textAlign: "center"
+};
+
+const btnOutline = {
+  flex: 1,
+  border: "2px solid #25d366",
+  color: "#25d366",
+  padding: 10,
+  borderRadius: 8,
+  textAlign: "center"
+};
+
+const btnRed = {
+  width: "100%",
+  marginTop: 10,
+  background: "#ff1c1c",
+  color: "#fff",
+  padding: 10,
+  borderRadius: 8,
+  border: "none"
+};
+
+const btnSamu = {
+  display: "block",
+  width: "100%",
+  background: "#ff1c1c",
+  color: "#fff",
+  padding: 14,
+  textAlign: "center",
+  borderRadius: 10,
+  marginTop: 12,
+  textDecoration: "none",
+  fontWeight: "bold"
+};
