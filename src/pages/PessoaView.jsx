@@ -22,9 +22,7 @@ export default function PessoaView() {
 
   if (!data) return null;
 
-  // 🔥 CORREÇÃO AQUI
   const nome = data?.name || "Pessoa";
-
   const foto = data?.foto_url || "";
   const tipo = data?.tipo_sanguineo || "-";
   const nascimento = data?.data_nascimento;
@@ -55,7 +53,7 @@ export default function PessoaView() {
     <div style={{ background: "#f2f2f2", minHeight: "100vh", padding: 20 }}>
       <div style={{ maxWidth: 420, margin: "0 auto" }}>
 
-        {/* 🔴 HEADER */}
+        {/* HEADER */}
         <div style={{
           background: "#ff1c1c",
           borderRadius: 24,
@@ -94,7 +92,7 @@ export default function PessoaView() {
           </div>
         </div>
 
-        {/* 🚑 SAMU */}
+        {/* SAMU */}
         <a href="tel:192" style={btnSamu}>
           📞 Ligar SAMU (192)
         </a>
@@ -105,8 +103,13 @@ export default function PessoaView() {
           <h3>{contato1}</h3>
 
           <div style={row}>
-            <a href={`tel:${tel1}`} style={btnRedSmall}>📞 Ligar Agora</a>
-            <a href={`https://wa.me/${formatTel(tel1)}`} style={btnOutline}>WhatsApp</a>
+            <a href={`tel:${tel1}`} style={btnCall}>
+              📞 Ligar Agora
+            </a>
+
+            <a href={`https://wa.me/${formatTel(tel1)}`} style={btnWhats}>
+              WhatsApp
+            </a>
           </div>
 
           <button style={btnRed} onClick={enviarLocalizacao}>
@@ -120,8 +123,13 @@ export default function PessoaView() {
           <h3>{contato2}</h3>
 
           <div style={row}>
-            <a href={`tel:${tel2}`} style={btnRedSmall}>📞 Ligar Agora</a>
-            <a href={`https://wa.me/${formatTel(tel2)}`} style={btnOutline}>WhatsApp</a>
+            <a href={`tel:${tel2}`} style={btnCall}>
+              📞 Ligar Agora
+            </a>
+
+            <a href={`https://wa.me/${formatTel(tel2)}`} style={btnWhats}>
+              WhatsApp
+            </a>
           </div>
         </div>
 
@@ -130,14 +138,21 @@ export default function PessoaView() {
         <div style={card}><b>Medicamentos</b><br />{medicamentos}</div>
         <div style={card}><b>Observações</b><br />{obs}</div>
 
-        {/* RODAPÉ */}
+        {/* RODAPÉ (IGUAL PET) */}
         <div style={{ textAlign: "center", marginTop: 30, fontSize: 12, opacity: 0.7 }}>
-          <div>Dados para uso em emergências.</div>
-          <div>Problemas ou dúvidas:</div>
+          <div>
+            Os dados exibidos nesta página foram fornecidos com autorização do responsável,
+            exclusivamente para uso em situações de emergência. Tem a finalidade única de facilitar o contato
+            e contribuir para o caso de emergência.
+          </div>
+
+          <div style={{ marginTop: 10 }}>
+            Problemas ou dúvidas:
+          </div>
 
           <a
             href="https://wa.me/SEUNUMEROAQUI"
-            style={{ color: "#25d366", textDecoration: "none" }}
+            style={{ color: "#25d366", textDecoration: "none", fontWeight: "bold" }}
           >
             Suporte via WhatsApp
           </a>
@@ -152,7 +167,8 @@ export default function PessoaView() {
   );
 }
 
-// estilos
+/* ===== ESTILOS ===== */
+
 const card = {
   background: "#fff",
   padding: 16,
@@ -167,22 +183,24 @@ const row = {
   marginTop: 10
 };
 
-const btnRedSmall = {
+const btnCall = {
   flex: 1,
-  background: "#000",
+  background: "#ff1c1c",
   color: "#fff",
   padding: 10,
   borderRadius: 8,
-  textAlign: "center"
+  textAlign: "center",
+  fontWeight: "bold"
 };
 
-const btnOutline = {
+const btnWhats = {
   flex: 1,
   border: "2px solid #25d366",
   color: "#25d366",
   padding: 10,
   borderRadius: 8,
-  textAlign: "center"
+  textAlign: "center",
+  fontWeight: "bold"
 };
 
 const btnRed = {
@@ -192,7 +210,8 @@ const btnRed = {
   color: "#fff",
   padding: 10,
   borderRadius: 8,
-  border: "none"
+  border: "none",
+  fontWeight: "bold"
 };
 
 const btnSamu = {
