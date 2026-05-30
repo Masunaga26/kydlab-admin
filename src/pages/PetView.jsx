@@ -2,92 +2,65 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-import TapLayout, {
-  TapHero,
-  TapCard,
-  TapActionRow,
-  TapCallButton,
-  TapWhatsButton,
-} from "../components/TapLayout";
-
 export default function PetView() {
   const { code } = useParams();
-
   const [data, setData] = useState(null);
-  const [erro, setErro] = useState("");
   const [loadingLoc, setLoadingLoc] = useState(false);
 
   useEffect(() => {
-    carregar();
-  }, []);
+    async function fetchData() {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*")
+        .eq("code", code)
+        .single();
 
-  async function carregar() {
-    const { data, error } = await supabase
-      .from("tags")
-      .select("*")
-      .eq("code", code)
-      .single();
-
-    if (error || !data) {
-      console.error("Erro ao carregar pet:", error);
-      setErro("Código inválido ou não encontrado.");
-      return;
+      if (!error && data) setData(data);
     }
 
-    if (!data.locked) {
-      window.location.href = `/escolha/${code}`;
-      return;
-    }
+    fetchData();
+  }, [code]);
 
-    if (data.tipo && data.tipo !== "pet") {
-      window.location.href = `/pessoa/${code}`;
-      return;
-    }
+  if (!data) return null;
 
-    setData(data);
-  }
+  // 📌 DADOS
+  const nome = data?.name || "Pet";
+  const foto = data?.foto_url || "";
 
-  function limparTelefone(tel) {
-    return (tel || "").replace(/\D/g, "");
-  }
+  const tel1 = (data?.tutor1_telefone || "").replace(/\D/g, "");
+  const tel2 = (data?.tutor2_telefone || "").replace(/\D/g, "");
 
-  function telefoneValido(tel) {
-    const limpo = limparTelefone(tel);
-    return limpo.length === 10 || limpo.length === 11;
-  }
+  const tutor1 = data?.tutor1_nome || "Tutor principal";
+  const tutor2 = data?.tutor2_nome || "Tutor 2";
 
-  const telefone1 = limparTelefone(data?.tutor1_telefone);
-  const telefone2 = limparTelefone(data?.tutor2_telefone);
+  const obs = data?.observacoes || "-";
 
-  const telefonePrincipal = telefoneValido(telefone1)
-    ? telefone1
-    : telefoneValido(telefone2)
-    ? telefone2
+  // 🔥 VALIDAÇÃO
+  const telefoneValido = (tel) => tel.length === 10 || tel.length === 11;
+
+  // 🔥 DEFINE PRINCIPAL COM FALLBACK
+  const telefonePrincipal = telefoneValido(tel1)
+    ? tel1
+    : telefoneValido(tel2)
+    ? tel2
     : null;
 
-  const nomeTutorPrincipal = telefoneValido(telefone1)
-    ? data?.tutor1_nome
-    : data?.tutor2_nome;
+  const nomePrincipal = telefonePrincipal === tel1 ? tutor1 : tutor2;
 
+  // 🔥 MOSTRAR TUTOR 2 CORRETO
   const mostrarTutor2 =
-    telefoneValido(telefone2) &&
-    telefone2 !== telefonePrincipal &&
-    Boolean(data?.tutor2_nome || telefone2);
+    telefoneValido(tel2) &&
+    tel2 !== telefonePrincipal &&
+    Boolean(tutor2 || tel2);
 
-  function mensagemBase() {
-    return encodeURIComponent(
-      `Encontrei ${data?.name || "esse pet"} em uma emergência.`
-    );
-  }
-
-  // 🔥 CORREÇÃO iOS (ÚNICA ALTERAÇÃO)
+  // 🔥 LOCALIZAÇÃO PADRÃO (IGUAL PESSOA)
   function enviarLocalizacao(telefone) {
     if (!telefoneValido(telefone)) {
       alert("Telefone não disponível.");
       return;
     }
 
-    const mensagemInicial = `Encontrei ${data?.name || "esse pet"} em uma emergência.`;
+    const mensagemInicial = `Encontrei ${nome} e ele está perdido.`;
 
     if (!navigator.geolocation) {
       const mensagem = encodeURIComponent(mensagemInicial);
@@ -127,147 +100,155 @@ export default function PetView() {
     );
   }
 
-  if (erro) {
-    return (
-      <TapLayout footerType="simple" productType="pet" code={code}>
-        <TapCard>
-          <p style={loading}>{erro}</p>
-        </TapCard>
-      </TapLayout>
-    );
-  }
-
-  if (!data) {
-    return (
-      <TapLayout footerType="simple" productType="pet" code={code}>
-        <p style={loading}>Carregando...</p>
-      </TapLayout>
-    );
-  }
-
-  const fotoUrlFinal =
-    data?.foto_url && data.foto_url !== ""
-      ? `${data.foto_url}?t=${Date.now()}`
-      : "https://via.placeholder.com/150";
-
   return (
-    <TapLayout footerType="view" productType="pet" code={code}>
-      <TapHero
-        variant="view"
-        photoUrl={fotoUrlFinal}
-        eyebrow="Oi, me chamo"
-        title={(data.name || "Pet").toUpperCase()}
-        subtitle="Estou perdido 😢 Me ajude a voltar pra casa!"
-      />
+    <div style={{ background: "#f2f2f2", minHeight: "100vh", padding: 20 }}>
+      <div style={{ maxWidth: 420, margin: "0 auto" }}>
 
-      {telefoneValido(telefonePrincipal) && (
-        <TapCard>
-          <p style={label}>TUTOR PRINCIPAL</p>
-          <h3 style={contactName}>
-            {nomeTutorPrincipal || "Responsável"}
-          </h3>
-
-          <TapActionRow>
-            <TapCallButton href={`tel:${telefonePrincipal}`}>
-              Ligar Agora
-            </TapCallButton>
-
-            <TapWhatsButton
-              href={`https://wa.me/55${telefonePrincipal}?text=${mensagemBase()}`}
-            >
-              WhatsApp
-            </TapWhatsButton>
-          </TapActionRow>
-
-          <button
-            type="button"
-            style={btnLocal}
-            onClick={() => enviarLocalizacao(telefonePrincipal)}
+        {/* HEADER */}
+        <div
+          style={{
+            background: "#ff1c1c",
+            borderRadius: 24,
+            padding: 24,
+            textAlign: "center",
+            color: "#fff",
+          }}
+        >
+          <div
+            style={{
+              width: 110,
+              height: 110,
+              borderRadius: "50%",
+              background: "#fff",
+              margin: "0 auto 12px",
+              overflow: "hidden",
+            }}
           >
-            {loadingLoc ? "Enviando..." : "📍 Enviar localização"}
-          </button>
-        </TapCard>
-      )}
+            {foto ? (
+              <img
+                src={foto}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <div style={{ lineHeight: "110px" }}>🐶</div>
+            )}
+          </div>
 
-      {mostrarTutor2 && (
-        <TapCard>
-          <p style={label}>TUTOR 2</p>
-          <h3 style={contactName}>{data.tutor2_nome || "Responsável"}</h3>
+          <div style={{ fontSize: 12 }}>Oi, me chamo</div>
+          <h2>{nome}</h2>
 
-          <TapActionRow>
-            <TapCallButton href={`tel:${telefone2}`}>
-              Ligar Agora
-            </TapCallButton>
+          <div style={{ fontSize: 14 }}>
+            Estou perdido 😢 Me ajuda a voltar pra casa!
+          </div>
+        </div>
 
-            <TapWhatsButton
-              href={`https://wa.me/55${telefone2}?text=${mensagemBase()}`}
+        {/* CONTATO PRINCIPAL */}
+        {telefonePrincipal && (
+          <div style={card}>
+            <small>Tutor principal</small>
+            <h3>{nomePrincipal}</h3>
+
+            <div style={row}>
+              <a href={`tel:${telefonePrincipal}`} style={btnCall}>
+                📞 Ligar Agora
+              </a>
+              <a
+                href={`https://wa.me/55${telefonePrincipal}`}
+                style={btnWhats}
+              >
+                WhatsApp
+              </a>
+            </div>
+
+            <button
+              style={btnRed}
+              onClick={() => enviarLocalizacao(telefonePrincipal)}
             >
-              WhatsApp
-            </TapWhatsButton>
-          </TapActionRow>
-        </TapCard>
-      )}
+              📍 Enviar localização
+            </button>
+          </div>
+        )}
 
-      {!telefoneValido(telefonePrincipal) && (
-        <TapCard>
-          <p style={label}>CONTATO</p>
-          <p style={infoText}>
-            Nenhum telefone válido foi informado para este pet.
-          </p>
-        </TapCard>
-      )}
+        {/* TUTOR 2 */}
+        {mostrarTutor2 && (
+          <div style={card}>
+            <small>Tutor 2</small>
+            <h3>{tutor2}</h3>
 
-      {data.observacoes && (
-        <TapCard>
-          <p style={label}>CONDIÇÕES ESPECIAIS / OBSERVAÇÕES</p>
-          <p style={infoText}>{data.observacoes}</p>
-        </TapCard>
-      )}
-    </TapLayout>
+            <div style={row}>
+              <a href={`tel:${tel2}`} style={btnCall}>
+                📞 Ligar Agora
+              </a>
+              <a href={`https://wa.me/55${tel2}`} style={btnWhats}>
+                WhatsApp
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* OBS */}
+        <div style={card}>
+          <b>Condições especiais / observações</b>
+          <br />
+          {obs}
+        </div>
+
+        {/* RODAPÉ */}
+        <div style={{ textAlign: "center", marginTop: 30, fontSize: 12 }}>
+          Os dados exibidos nesta página foram fornecidos com autorização do responsável.
+          <br />
+          Em caso de dúvida ou problema:
+          <br />
+          <a href="https://wa.me/SEUNUMERO" style={{ color: "#25d366" }}>
+            Suporte via WhatsApp
+          </a>
+          <br />
+          TAP QR — Identificação PET
+        </div>
+      </div>
+    </div>
   );
 }
 
-/* 🎨 ESTILOS (INALTERADOS) */
-
-const loading = {
-  textAlign: "center",
-  padding: 30,
-  color: "#777",
+/* estilos */
+const card = {
+  background: "#fff",
+  padding: 16,
+  borderRadius: 16,
+  marginTop: 16,
+  boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
 };
 
-const label = {
-  margin: "0 0 10px",
-  fontSize: 13,
-  color: "#777",
-  fontWeight: 900,
-  textTransform: "uppercase",
-  letterSpacing: ".5px",
+const row = {
+  display: "flex",
+  gap: 10,
+  marginTop: 10,
 };
 
-const contactName = {
-  margin: 0,
-  fontSize: 26,
-  color: "#111",
-  fontWeight: 950,
-};
-
-const btnLocal = {
-  width: "100%",
-  marginTop: 12,
-  minHeight: 54,
-  borderRadius: 14,
-  border: "none",
-  background: "#ef1c1c",
+const btnCall = {
+  flex: 1,
+  background: "#ff1c1c",
   color: "#fff",
-  fontWeight: 900,
-  fontSize: 16,
-  cursor: "pointer",
+  padding: 10,
+  borderRadius: 8,
+  textAlign: "center",
 };
 
-const infoText = {
-  margin: 0,
-  color: "#333",
-  fontSize: 18,
-  lineHeight: 1.45,
-  fontWeight: 500,
+const btnWhats = {
+  flex: 1,
+  border: "2px solid #25d366",
+  color: "#25d366",
+  padding: 10,
+  borderRadius: 8,
+  textAlign: "center",
+};
+
+const btnRed = {
+  width: "100%",
+  marginTop: 10,
+  background: "#ff1c1c",
+  color: "#fff",
+  padding: 10,
+  borderRadius: 8,
+  border: "none",
 };

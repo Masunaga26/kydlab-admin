@@ -22,32 +22,97 @@ export default function PessoaView() {
 
   if (!data) return null;
 
+  // 🔥 LIMPA TELEFONE (ESSENCIAL)
+  const limparTelefone = (tel) => {
+    if (!tel) return "";
+    return tel.replace(/\D/g, "");
+  };
+
+  const tel1 = limparTelefone(data?.tutor1_telefone);
+  const tel2 = limparTelefone(data?.tutor2_telefone);
+
+  const telefoneValido = (tel) => tel && tel.length >= 10;
+
+  // 🔥 DEFINE PRINCIPAL
+  const telefonePrincipal = telefoneValido(tel1)
+    ? tel1
+    : telefoneValido(tel2)
+    ? tel2
+    : null;
+
+  const nomePrincipal =
+    telefonePrincipal === tel1
+      ? data?.tutor1_nome
+      : data?.tutor2_nome;
+
+  const mostrarContato2 =
+    telefoneValido(tel2) &&
+    tel2 !== telefonePrincipal;
+
+  // 🔥 DADOS
   const nome = data?.name || "Pessoa";
   const foto = data?.foto_url || "";
   const tipo = data?.tipo_sanguineo || "-";
   const nascimento = data?.data_nascimento;
 
-  const contato1 = data?.contato1_nome || "Contato principal";
-  const contato2 = data?.contato2_nome || "Contato 2";
-  const tel1 = data?.telefone1 || "";
-  const tel2 = data?.telefone2 || "";
+  const contato2 = data?.tutor2_nome;
 
   const alergias = data?.alergias || "-";
   const medicamentos = data?.medicamentos || "-";
   const obs = data?.observacoes || "-";
 
   const idade = nascimento
-    ? Math.floor((new Date() - new Date(nascimento)) / (365.25 * 24 * 60 * 60 * 1000))
+    ? Math.floor(
+        (new Date() - new Date(nascimento)) /
+          (365.25 * 24 * 60 * 60 * 1000)
+      )
     : null;
 
-  const formatTel = (tel) => tel?.replace(/\D/g, "");
+  // 🔥 FUNÇÃO WHATSAPP (FUNCIONA SEMPRE)
+  function abrirWhatsApp(telefone, mensagem) {
+    if (!telefoneValido(telefone)) {
+      alert("Telefone inválido");
+      return;
+    }
 
-  const enviarLocalizacao = () => {
-    navigator.geolocation?.getCurrentPosition((pos) => {
-      const url = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
-      window.open(url);
-    });
-  };
+    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+
+    window.open(url, "_blank");
+  }
+
+  // 🔥 LOCALIZAÇÃO DEFINITIVA
+  function enviarLocalizacao(telefone) {
+    if (!telefoneValido(telefone)) {
+      alert("Telefone inválido");
+      return;
+    }
+
+    const mensagemBase = `Encontrei ${nome} e precisa de ajuda.`;
+
+    if (!navigator.geolocation) {
+      abrirWhatsApp(telefone, mensagemBase);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+
+        const link = `https://maps.google.com/?q=${latitude},${longitude}`;
+
+        const mensagem = `${mensagemBase}\n\nMinha localização:\n${link}`;
+
+        abrirWhatsApp(telefone, mensagem);
+      },
+      () => {
+        abrirWhatsApp(telefone, mensagemBase);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      }
+    );
+  }
 
   return (
     <div style={{ background: "#f2f2f2", minHeight: "100vh", padding: 20 }}>
@@ -67,8 +132,7 @@ export default function PessoaView() {
             borderRadius: "50%",
             background: "#fff",
             margin: "0 auto 12px",
-            overflow: "hidden",
-            border: "4px solid rgba(255,255,255,0.4)"
+            overflow: "hidden"
           }}>
             {foto
               ? <img src={foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -77,98 +141,87 @@ export default function PessoaView() {
           </div>
 
           <div style={{ fontSize: 12 }}>FICHA MÉDICA DE EMERGÊNCIA</div>
+          <h2>{nome}</h2>
 
-          <h2 style={{ margin: "6px 0", fontSize: 22 }}>
-            {nome}
-          </h2>
-
-          <div style={{ display: "flex", justifyContent: "center", gap: 15, fontSize: 14 }}>
-            {idade && <div>🎂 {idade} anos</div>}
-            <div>🩸 {tipo}</div>
-          </div>
-
-          <div style={{ marginTop: 10, fontSize: 13 }}>
-            🚨 Em caso de emergência, use as informações abaixo para ajudar no contato.
+          <div>
+            {idade && <span>🎂 {idade} anos </span>}
+            <span>🩸 {tipo}</span>
           </div>
         </div>
 
         {/* SAMU */}
-        <a href="tel:192" style={btnSamu}>
-          📞 Ligar SAMU (192)
-        </a>
+        <a href="tel:192" style={btnSamu}>📞 Ligar SAMU (192)</a>
 
-        {/* CONTATO 1 */}
-        <div style={card}>
-          <small>Contato principal</small>
-          <h3>{contato1}</h3>
+        {/* CONTATO PRINCIPAL */}
+        {telefonePrincipal && (
+          <div style={card}>
+            <small>Contato principal</small>
+            <h3>{nomePrincipal}</h3>
 
-          <div style={row}>
-            <a href={`tel:${tel1}`} style={btnCall}>
-              📞 Ligar Agora
-            </a>
+            <div style={row}>
+              <a href={`tel:${telefonePrincipal}`} style={btnCall}>
+                📞 Ligar Agora
+              </a>
 
-            <a href={`https://wa.me/${formatTel(tel1)}`} style={btnWhats}>
-              WhatsApp
-            </a>
+              <button
+                style={btnWhats}
+                onClick={() =>
+                  abrirWhatsApp(
+                    telefonePrincipal,
+                    `Encontrei ${nome} e precisa de ajuda.`
+                  )
+                }
+              >
+                WhatsApp
+              </button>
+            </div>
+
+            <button
+              style={btnRed}
+              onClick={() => enviarLocalizacao(telefonePrincipal)}
+            >
+              📍 Enviar localização
+            </button>
           </div>
-
-          <button style={btnRed} onClick={enviarLocalizacao}>
-            📍 Enviar localização
-          </button>
-        </div>
+        )}
 
         {/* CONTATO 2 */}
-        <div style={card}>
-          <small>Contato 2</small>
-          <h3>{contato2}</h3>
+        {mostrarContato2 && (
+          <div style={card}>
+            <small>Contato 2</small>
+            <h3>{contato2}</h3>
 
-          <div style={row}>
-            <a href={`tel:${tel2}`} style={btnCall}>
-              📞 Ligar Agora
-            </a>
+            <div style={row}>
+              <a href={`tel:${tel2}`} style={btnCall}>
+                📞 Ligar Agora
+              </a>
 
-            <a href={`https://wa.me/${formatTel(tel2)}`} style={btnWhats}>
-              WhatsApp
-            </a>
+              <button
+                style={btnWhats}
+                onClick={() =>
+                  abrirWhatsApp(
+                    tel2,
+                    `Encontrei ${nome} e precisa de ajuda.`
+                  )
+                }
+              >
+                WhatsApp
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* DADOS */}
         <div style={card}><b>Alergias</b><br />{alergias}</div>
         <div style={card}><b>Medicamentos</b><br />{medicamentos}</div>
         <div style={card}><b>Observações</b><br />{obs}</div>
 
-        {/* RODAPÉ (IGUAL PET) */}
-        <div style={{ textAlign: "center", marginTop: 30, fontSize: 12, opacity: 0.7 }}>
-          <div>
-            Os dados exibidos nesta página foram fornecidos com autorização do responsável,
-            exclusivamente para uso em situações de emergência. Tem a finalidade única de facilitar o contato
-            e contribuir para o caso de emergência.
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            Problemas ou dúvidas:
-          </div>
-
-          <a
-            href="https://wa.me/SEUNUMEROAQUI"
-            style={{ color: "#25d366", textDecoration: "none", fontWeight: "bold" }}
-          >
-            Suporte via WhatsApp
-          </a>
-
-          <div style={{ marginTop: 10 }}>
-            TAP QR — Identificação de Emergência
-          </div>
-        </div>
-
       </div>
     </div>
   );
 }
 
-/* ===== ESTILOS ===== */
-
+/* estilos */
 const card = {
   background: "#fff",
   padding: 16,
@@ -190,7 +243,7 @@ const btnCall = {
   padding: 10,
   borderRadius: 8,
   textAlign: "center",
-  fontWeight: "bold"
+  border: "none"
 };
 
 const btnWhats = {
@@ -199,8 +252,8 @@ const btnWhats = {
   color: "#25d366",
   padding: 10,
   borderRadius: 8,
-  textAlign: "center",
-  fontWeight: "bold"
+  background: "#fff",
+  cursor: "pointer"
 };
 
 const btnRed = {
@@ -210,8 +263,7 @@ const btnRed = {
   color: "#fff",
   padding: 10,
   borderRadius: 8,
-  border: "none",
-  fontWeight: "bold"
+  border: "none"
 };
 
 const btnSamu = {
@@ -223,6 +275,5 @@ const btnSamu = {
   textAlign: "center",
   borderRadius: 10,
   marginTop: 12,
-  textDecoration: "none",
-  fontWeight: "bold"
+  textDecoration: "none"
 };
