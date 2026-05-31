@@ -5,7 +5,6 @@ import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import PessoaView from "./pages/PessoaView";
 import PetView from "./pages/PetView";
-import ResetPassword from "./pages/ResetPassword";
 import QrRedirect from "./pages/QrRedirect";
 import TagEntry from "./pages/TagEntry";
 import Escolha from "./pages/Escolha";
@@ -33,9 +32,6 @@ function App() {
 
         {/* LOGIN */}
         <Route path="/login" element={<Login />} />
-
-        {/* RESET DE SENHA */}
-        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* ADMIN PROTEGIDO */}
         <Route
