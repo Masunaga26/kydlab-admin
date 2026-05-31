@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
@@ -7,46 +7,103 @@ import TapLayout, { TapCard } from "../components/TapLayout";
 export default function QrRedirect() {
   const { code } = useParams();
 
+  const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     verificar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   async function verificar() {
     try {
+      const codigoLimpo = String(code || "").trim();
+
+      if (!codigoLimpo) {
+        setErro("Código inválido ou não informado.");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("tags")
         .select("*")
-        .eq("code", code)
-        .single();
+        .eq("code", codigoLimpo)
+        .maybeSingle();
 
-      if (error || !data) {
-        window.location.replace("/");
+      if (error) {
+        console.error("Erro ao buscar código:", error);
+        setErro("Não foi possível verificar este QR no momento.");
+        setLoading(false);
+        return;
+      }
+
+      if (!data) {
+        setErro("Código não encontrado no sistema.");
+        setLoading(false);
         return;
       }
 
       if (!data.tipo) {
-        window.location.replace(`/escolha/${code}`);
+        window.location.replace(`/escolha/${codigoLimpo}`);
         return;
       }
 
       if (!data.locked) {
         if (data.tipo === "pet") {
-          window.location.replace(`/cadastro/pet/${code}`);
-        } else {
-          window.location.replace(`/cadastro/pessoa/${code}`);
+          window.location.replace(`/cadastro/pet/${codigoLimpo}`);
+          return;
         }
+
+        if (data.tipo === "pessoa") {
+          window.location.replace(`/cadastro/pessoa/${codigoLimpo}`);
+          return;
+        }
+
+        window.location.replace(`/escolha/${codigoLimpo}`);
         return;
       }
 
       if (data.tipo === "pet") {
-        window.location.replace(`/pet/${code}`);
-      } else {
-        window.location.replace(`/pessoa/${code}`);
+        window.location.replace(`/pet/${codigoLimpo}`);
+        return;
       }
+
+      if (data.tipo === "pessoa") {
+        window.location.replace(`/pessoa/${codigoLimpo}`);
+        return;
+      }
+
+      setErro("Tipo de identificação não reconhecido.");
+      setLoading(false);
     } catch (err) {
-      console.error("Erro QR:", err);
-      window.location.replace("/");
+      console.error("Erro inesperado no QR:", err);
+      setErro("Erro inesperado ao abrir este QR.");
+      setLoading(false);
     }
+  }
+
+  if (erro) {
+    return (
+      <TapLayout footerType="simple" productType="geral" code={code}>
+        <div style={screenCenter}>
+          <div style={brandBadge}>
+            <span style={brandDot}>●</span>
+            <span>TAP QR</span>
+          </div>
+
+          <TapCard style={statusCard}>
+            <div style={errorIcon}>⚠️</div>
+
+            <h2 style={statusTitle}>QR não disponível</h2>
+
+            <p style={statusText}>{erro}</p>
+
+            <p style={codeText}>Código: {code}</p>
+          </TapCard>
+        </div>
+      </TapLayout>
+    );
   }
 
   return (
@@ -117,6 +174,18 @@ const loader = {
   borderRadius: "50%",
   margin: "0 auto 22px",
   animation: "spin 1s linear infinite",
+};
+
+const errorIcon = {
+  width: 72,
+  height: 72,
+  margin: "0 auto 18px",
+  borderRadius: 22,
+  background: "#fff1f1",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 34,
 };
 
 const statusTitle = {
