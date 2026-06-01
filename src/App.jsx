@@ -4,8 +4,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import AdminEdit from "./pages/AdminEdit";
+
 import PessoaView from "./pages/PessoaView";
 import PetView from "./pages/PetView";
+
+import CadastroPessoa from "./pages/CadastroPessoa";
+import CadastroPet from "./pages/CadastroPet";
+
 import QrRedirect from "./pages/QrRedirect";
 import TagEntry from "./pages/TagEntry";
 import Escolha from "./pages/Escolha";
@@ -23,13 +28,13 @@ function App() {
         <Route path="/ativar/:code" element={<TagEntry />} />
         <Route path="/escolha/:code" element={<Escolha />} />
 
+        {/* CADASTRO PÚBLICO */}
+        <Route path="/cadastro/pessoa/:code" element={<CadastroPessoa />} />
+        <Route path="/cadastro/pet/:code" element={<CadastroPet />} />
+
         {/* VISUALIZAÇÃO PÚBLICA */}
         <Route path="/pessoa/:code" element={<PessoaView />} />
         <Route path="/pet/:code" element={<PetView />} />
-
-        {/* CADASTRO PÚBLICO */}
-        <Route path="/cadastro/pessoa/:code" element={<PessoaView />} />
-        <Route path="/cadastro/pet/:code" element={<PetView />} />
 
         {/* LOGIN */}
         <Route path="/login" element={<Login />} />
