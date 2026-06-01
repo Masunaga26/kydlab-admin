@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 // páginas
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
+import AdminEdit from "./pages/AdminEdit";
 import PessoaView from "./pages/PessoaView";
 import PetView from "./pages/PetView";
 import QrRedirect from "./pages/QrRedirect";
@@ -39,6 +40,16 @@ function App() {
           element={
             <ProtectedRoute>
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* EDIÇÃO ADMIN PROTEGIDA */}
+        <Route
+          path="/admin/edit/:code"
+          element={
+            <ProtectedRoute>
+              <AdminEdit />
             </ProtectedRoute>
           }
         />
