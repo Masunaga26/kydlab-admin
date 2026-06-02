@@ -293,7 +293,6 @@ export default function CadastroPessoa() {
         .from("tags")
         .update(updateData)
         .eq("code", code)
-        .eq("locked", false)
         .select("*")
         .maybeSingle();
 
@@ -318,7 +317,7 @@ export default function CadastroPessoa() {
 
       if (!tagSalva) {
         console.error(
-          "Nenhuma linha foi atualizada. Possível código já bloqueado ou condição locked=false não atendida."
+          "Nenhuma linha foi atualizada. Não foi possível confirmar o retorno da linha salva."
         );
 
         const { data: tagAtualizada } = await supabase
