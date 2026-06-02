@@ -45,9 +45,8 @@ export default function PessoaView() {
   const nomePrincipal =
     telefonePrincipal === tel1 ? data?.tutor1_nome : data?.tutor2_nome;
 
-  const mostrarContato2 =
-    telefoneValido(tel2) &&
-    tel2 !== telefonePrincipal;
+  // 🔥 CORRIGIDO: permite contato 2 mesmo com nome/telefone igual ao principal
+  const mostrarContato2 = telefoneValido(tel2);
 
   // 🔥 DADOS
   const nome = data?.name || "Pessoa";

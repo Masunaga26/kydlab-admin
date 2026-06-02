@@ -47,10 +47,9 @@ export default function PetView() {
 
   const nomePrincipal = telefonePrincipal === tel1 ? tutor1 : tutor2;
 
-  // 🔥 MOSTRAR TUTOR 2 CORRETO
+  // 🔥 CORRIGIDO: permite tutor 2 mesmo com nome/telefone igual ao principal
   const mostrarTutor2 =
     telefoneValido(tel2) &&
-    tel2 !== telefonePrincipal &&
     Boolean(tutor2 || tel2);
 
   // 🔥 LOCALIZAÇÃO PADRÃO (IGUAL PESSOA)
