@@ -219,22 +219,23 @@ export default function CadastroPet() {
         updateData.foto_url = foto_url;
       }
 
-      const { error } = await supabase
+      const { data: tagSalva, error } = await supabase
         .from("tags")
         .update(updateData)
         .eq("code", code)
-        .eq("locked", false);
+        .select("*")
+        .maybeSingle();
 
       if (error) {
         console.error("Erro Supabase ao salvar pet:", error);
 
         const { data: tagDepoisErro } = await supabase
           .from("tags")
-          .select("locked,tipo")
+          .select("*")
           .eq("code", code)
-          .single();
+          .maybeSingle();
 
-        if (tagDepoisErro?.locked) {
+        if (tagDepoisErro?.locked && tagDepoisErro?.tipo) {
           window.location.href =
             tagDepoisErro.tipo === "pessoa" ? `/pessoa/${code}` : `/pet/${code}`;
           return;
@@ -244,7 +245,30 @@ export default function CadastroPet() {
         return;
       }
 
-      window.location.href = `/pet/${code}`;
+      if (!tagSalva) {
+        console.error(
+          "Nenhuma linha foi atualizada. Não foi possível confirmar o retorno da linha salva."
+        );
+
+        const { data: tagAtualizada } = await supabase
+          .from("tags")
+          .select("*")
+          .eq("code", code)
+          .maybeSingle();
+
+        if (tagAtualizada?.locked && tagAtualizada?.name && tagAtualizada?.tipo) {
+          window.location.href =
+            tagAtualizada.tipo === "pessoa" ? `/pessoa/${code}` : `/pet/${code}`;
+          return;
+        }
+
+        alert(
+          "Não foi possível confirmar o salvamento. Recarregue a página e tente novamente."
+        );
+        return;
+      }
+
+      window.location.href = `/pet/${tagSalva.code}?v=${Date.now()}`;
     } catch (err) {
       console.error("Erro inesperado ao salvar pet:", err);
       alert("Erro inesperado ao salvar. Tente novamente.");
