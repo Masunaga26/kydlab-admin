@@ -289,22 +289,24 @@ export default function CadastroPessoa() {
         updateData.foto_url = foto_url;
       }
 
-      const { error } = await supabase
+      const { data: tagSalva, error } = await supabase
         .from("tags")
         .update(updateData)
         .eq("code", code)
-        .eq("locked", false);
+        .eq("locked", false)
+        .select("*")
+        .maybeSingle();
 
       if (error) {
         console.error("Erro Supabase ao salvar pessoa:", error);
 
         const { data: tagDepoisErro } = await supabase
           .from("tags")
-          .select("locked,tipo")
+          .select("*")
           .eq("code", code)
-          .single();
+          .maybeSingle();
 
-        if (tagDepoisErro?.locked) {
+        if (tagDepoisErro?.locked && tagDepoisErro?.tipo) {
           window.location.href =
             tagDepoisErro.tipo === "pet" ? `/pet/${code}` : `/pessoa/${code}`;
           return;
@@ -314,7 +316,30 @@ export default function CadastroPessoa() {
         return;
       }
 
-      window.location.href = `/pessoa/${code}`;
+      if (!tagSalva) {
+        console.error(
+          "Nenhuma linha foi atualizada. Possível código já bloqueado ou condição locked=false não atendida."
+        );
+
+        const { data: tagAtualizada } = await supabase
+          .from("tags")
+          .select("*")
+          .eq("code", code)
+          .maybeSingle();
+
+        if (tagAtualizada?.locked && tagAtualizada?.name && tagAtualizada?.tipo) {
+          window.location.href =
+            tagAtualizada.tipo === "pet" ? `/pet/${code}` : `/pessoa/${code}`;
+          return;
+        }
+
+        alert(
+          "Não foi possível confirmar o salvamento. Recarregue a página e tente novamente."
+        );
+        return;
+      }
+
+      window.location.href = `/pessoa/${tagSalva.code}?v=${Date.now()}`;
     } catch (err) {
       console.error("Erro inesperado ao salvar pessoa:", err);
       alert("Erro inesperado ao salvar. Tente novamente.");
