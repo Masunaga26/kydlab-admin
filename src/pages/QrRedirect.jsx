@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 import TapLayout, { TapCard } from "../components/TapLayout";
 
 export default function QrRedirect() {
   const { code } = useParams();
+  const location = useLocation();
 
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const isNfc = location.pathname.startsWith("/nfc/");
+
   useEffect(() => {
     verificar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
+  }, [code, location.pathname]);
 
   async function verificar() {
     try {
@@ -33,7 +36,7 @@ export default function QrRedirect() {
 
       if (error) {
         console.error("Erro ao buscar código:", error);
-        setErro("Não foi possível verificar este QR no momento.");
+        setErro("Não foi possível verificar este código no momento.");
         setLoading(false);
         return;
       }
@@ -44,12 +47,31 @@ export default function QrRedirect() {
         return;
       }
 
+      // 🔒 NFC NÃO PODE INICIAR CADASTRO
+      // NFC só pode abrir a identificação depois que a peça já estiver ativada.
       if (!data.tipo) {
+        if (isNfc) {
+          setErro(
+            "Esta peça ainda não foi ativada. Para iniciar o cadastro, use o QR Code impresso na peça ou na embalagem."
+          );
+          setLoading(false);
+          return;
+        }
+
         window.location.replace(`/escolha/${codigoLimpo}`);
         return;
       }
 
+      // 🔒 NFC NÃO PODE CONTINUAR CADASTRO EM PEÇA AINDA NÃO BLOQUEADA
       if (!data.locked) {
+        if (isNfc) {
+          setErro(
+            "Esta peça ainda não foi ativada. Para concluir o cadastro, use o QR Code impresso na peça ou na embalagem."
+          );
+          setLoading(false);
+          return;
+        }
+
         if (data.tipo === "pet") {
           window.location.replace(`/cadastro/pet/${codigoLimpo}`);
           return;
@@ -64,6 +86,7 @@ export default function QrRedirect() {
         return;
       }
 
+      // ✅ QR OU NFC JÁ ATIVADO PODE ABRIR A VIEW FINAL
       if (data.tipo === "pet") {
         window.location.replace(`/pet/${codigoLimpo}`);
         return;
@@ -77,8 +100,8 @@ export default function QrRedirect() {
       setErro("Tipo de identificação não reconhecido.");
       setLoading(false);
     } catch (err) {
-      console.error("Erro inesperado no QR:", err);
-      setErro("Erro inesperado ao abrir este QR.");
+      console.error("Erro inesperado no QR/NFC:", err);
+      setErro("Erro inesperado ao abrir este código.");
       setLoading(false);
     }
   }
@@ -95,7 +118,9 @@ export default function QrRedirect() {
           <TapCard style={statusCard}>
             <div style={errorIcon}>⚠️</div>
 
-            <h2 style={statusTitle}>QR não disponível</h2>
+            <h2 style={statusTitle}>
+              {isNfc ? "NFC ainda não ativado" : "QR não disponível"}
+            </h2>
 
             <p style={statusText}>{erro}</p>
 
@@ -120,7 +145,7 @@ export default function QrRedirect() {
           <h2 style={statusTitle}>Abrindo identificação</h2>
 
           <p style={statusText}>
-            Aguarde enquanto verificamos este QR.
+            Aguarde enquanto verificamos este código.
           </p>
 
           <p style={codeText}>Código: {code}</p>
