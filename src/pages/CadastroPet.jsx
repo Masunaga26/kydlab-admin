@@ -185,7 +185,7 @@ export default function CadastroPet() {
           .from("profile-photos")
           .upload(fileName, foto, {
             contentType: "image/jpeg",
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {

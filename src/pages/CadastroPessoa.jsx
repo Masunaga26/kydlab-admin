@@ -248,7 +248,7 @@ export default function CadastroPessoa() {
           .from("profile-photos")
           .upload(fileName, foto, {
             contentType: "image/jpeg",
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {
