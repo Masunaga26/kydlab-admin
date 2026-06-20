@@ -16,11 +16,9 @@ export default function NfcView() {
 
   async function verificar() {
     try {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*")
-        .eq("code", code)
-        .single();
+      const { data, error } = await supabase.rpc("get_tag_status", {
+        p_code: code,
+      });
 
       if (error || !data) {
         setStatus("bloqueado");

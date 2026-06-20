@@ -28,11 +28,9 @@ export default function QrRedirect() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*")
-        .eq("code", codigoLimpo)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_tag_status", {
+        p_code: codigoLimpo,
+      });
 
       if (error) {
         console.error("Erro ao buscar código:", error);

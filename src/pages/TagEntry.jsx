@@ -21,11 +21,9 @@ function TagEntry() {
 
   async function checkTag() {
     try {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*")
-        .eq("code", code)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_tag_status", {
+        p_code: code,
+      });
 
       if (error) {
         console.error("Erro ao verificar código:", error);

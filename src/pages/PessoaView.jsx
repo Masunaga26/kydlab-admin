@@ -9,11 +9,9 @@ export default function PessoaView() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*")
-        .eq("code", code)
-        .single();
+      const { data, error } = await supabase.rpc("get_public_tag", {
+        p_code: code,
+      });
 
       if (!error && data) setData(data);
     }
@@ -56,6 +54,7 @@ export default function PessoaView() {
 
   const contato2 = data?.tutor2_nome;
 
+  const comorbidades = data?.comorbidades || "-";
   const alergias = data?.alergias || "-";
   const medicamentos = data?.medicamentos || "-";
   const obs = data?.observacoes || "-";
@@ -243,6 +242,12 @@ export default function PessoaView() {
         )}
 
         {/* DADOS */}
+        <div style={card}>
+          <b>Comorbidades</b>
+          <br />
+          {comorbidades}
+        </div>
+
         <div style={card}>
           <b>Alergias</b>
           <br />

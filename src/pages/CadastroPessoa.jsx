@@ -220,11 +220,12 @@ export default function CadastroPessoa() {
     setSalvando(true);
 
     try {
-      const { data: tagAtual, error: checkError } = await supabase
-        .from("tags")
-        .select("locked,tipo")
-        .eq("code", code)
-        .single();
+      const { data: tagAtual, error: checkError } = await supabase.rpc(
+        "get_tag_status",
+        {
+          p_code: code,
+        }
+      );
 
       if (checkError || !tagAtual) {
         console.error("Erro ao verificar código:", checkError);
@@ -266,44 +267,37 @@ export default function CadastroPessoa() {
         foto_url = publicUrlData.publicUrl;
       }
 
-      const updateData = {
-        name: nome.trim(),
-        data_nascimento: dataNascimentoFormatada,
-        tipo_sanguineo: tipoSanguineo,
+      const { data: tagSalva, error } = await supabase.rpc(
+        "activate_person",
+        {
+          p_code: code,
+          p_name: nome.trim(),
+          p_data_nascimento: dataNascimentoFormatada,
+          p_tipo_sanguineo: tipoSanguineo,
 
-        tutor1_nome: tutor1Nome.trim(),
-        tutor1_telefone: telefone1Limpo,
+          p_tutor1_nome: tutor1Nome.trim(),
+          p_tutor1_telefone: telefone1Limpo,
 
-        tutor2_nome: tutor2Nome.trim(),
-        tutor2_telefone: telefone2Limpo,
+          p_tutor2_nome: tutor2Nome.trim(),
+          p_tutor2_telefone: telefone2Limpo,
 
-        comorbidades: comorbidades.trim(),
-        alergias: alergias.trim(),
-        medicamentos: medicamentos.trim(),
+          p_comorbidades: comorbidades.trim(),
+          p_alergias: alergias.trim(),
+          p_medicamentos: medicamentos.trim(),
 
-        tipo: "pessoa",
-        locked: true,
-      };
-
-      if (foto_url) {
-        updateData.foto_url = foto_url;
-      }
-
-      const { data: tagSalva, error } = await supabase
-        .from("tags")
-        .update(updateData)
-        .eq("code", code)
-        .select("*")
-        .maybeSingle();
+          p_foto_url: foto_url,
+        }
+      );
 
       if (error) {
         console.error("Erro Supabase ao salvar pessoa:", error);
 
-        const { data: tagDepoisErro } = await supabase
-          .from("tags")
-          .select("*")
-          .eq("code", code)
-          .maybeSingle();
+        const { data: tagDepoisErro } = await supabase.rpc(
+          "get_tag_status",
+          {
+            p_code: code,
+          }
+        );
 
         if (tagDepoisErro?.locked && tagDepoisErro?.tipo) {
           window.location.href =
@@ -320,11 +314,12 @@ export default function CadastroPessoa() {
           "Nenhuma linha foi atualizada. Não foi possível confirmar o retorno da linha salva."
         );
 
-        const { data: tagAtualizada } = await supabase
-          .from("tags")
-          .select("*")
-          .eq("code", code)
-          .maybeSingle();
+        const { data: tagAtualizada } = await supabase.rpc(
+          "get_tag_status",
+          {
+            p_code: code,
+          }
+        );
 
         if (tagAtualizada?.locked && tagAtualizada?.name && tagAtualizada?.tipo) {
           window.location.href =

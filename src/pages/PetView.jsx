@@ -9,11 +9,9 @@ export default function PetView() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*")
-        .eq("code", code)
-        .single();
+      const { data, error } = await supabase.rpc("get_public_tag", {
+        p_code: code,
+      });
 
       if (!error && data) setData(data);
     }

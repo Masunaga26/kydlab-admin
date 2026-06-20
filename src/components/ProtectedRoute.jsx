@@ -3,22 +3,39 @@ import { supabase } from "../supabaseClient";
 import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    async function checkUser() {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
       setLoading(false);
-    }
+    };
 
-    checkUser();
+    getSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (loading) return <h2>Carregando...</h2>;
+  // 🔥 IMPORTANTE: nunca retornar null
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", marginTop: 100 }}>
+        Carregando...
+      </div>
+    );
+  }
 
-  if (!user) return <Navigate to="/login" />;
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
 
   return children;
 }
