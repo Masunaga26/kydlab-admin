@@ -203,6 +203,24 @@ export default function Admin() {
         </header>
 
         <div style={toolbar}>
+          <button
+            onClick={() => {
+              window.location.href = "/admin/pro";
+            }}
+            style={buttonGold}
+          >
+            ✨ Administrar TAP PRO
+          </button>
+
+          <button
+            onClick={() => {
+              window.location.href = "/admin/tapinsta";
+            }}
+            style={buttonInstagram}
+          >
+            ◎ Administrar TAP INSTA
+          </button>
+
           <button onClick={exportXLS} style={buttonDark}>
             📥 Exportar XLS
           </button>
@@ -340,6 +358,26 @@ const toolbar = {
   gap: 10,
   margin: "20px 0",
   flexWrap: "wrap",
+};
+
+const buttonGold = {
+  padding: "12px 16px",
+  border: "none",
+  borderRadius: 10,
+  background: "#b8892f",
+  color: "#fff",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const buttonInstagram = {
+  padding: "12px 16px",
+  border: "none",
+  borderRadius: 10,
+  background: "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)",
+  color: "#fff",
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
 const buttonDark = {

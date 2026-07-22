@@ -1,7 +1,16 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: '/', // 🔥 CORREÇÃO AQUI
-  plugins: [react()],
-})
+  base: "/",
+
+  plugins: [
+    react(),
+  ],
+
+  server: {
+    allowedHosts: [
+      "jesus-walks-geology-queensland.trycloudflare.com",
+    ],
+  },
+});
