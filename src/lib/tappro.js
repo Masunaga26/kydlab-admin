@@ -2162,10 +2162,16 @@ export async function criarPixAnualEmpresaPro(
 
 export async function sincronizarAssinaturaMensalEmpresaPro(
   accessCode,
-  payerEmail
+  payerEmail,
+  subscriptionId = null
 ) {
   const cleanCode =
     limparCodigoPro(accessCode);
+
+  const cleanSubscriptionId =
+    String(
+      subscriptionId || ""
+    ).trim();
 
   const { data, error } =
     await supabase.functions.invoke(
@@ -2180,6 +2186,9 @@ export async function sincronizarAssinaturaMensalEmpresaPro(
             )
               .trim()
               .toLowerCase(),
+          subscriptionId:
+            cleanSubscriptionId ||
+            null,
         },
       }
     );
@@ -2196,5 +2205,37 @@ export async function sincronizarAssinaturaMensalEmpresaPro(
             )
           : null
       ),
+  };
+}
+
+export async function regularizarAssinaturaMensalEmpresaPro(
+  accessCode,
+  payerEmail,
+  subscriptionId = null
+) {
+  const result =
+    await sincronizarAssinaturaMensalEmpresaPro(
+      accessCode,
+      payerEmail,
+      subscriptionId
+    );
+
+  if (result.error) {
+    return result;
+  }
+
+  const regularizationUrl =
+    String(
+      result.data?.regularizationUrl ||
+      ""
+    ).trim();
+
+  return {
+    data: {
+      ...result.data,
+      regularizationUrl:
+        regularizationUrl || null,
+    },
+    error: null,
   };
 }

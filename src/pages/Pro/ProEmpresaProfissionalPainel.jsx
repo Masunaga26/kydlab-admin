@@ -26,6 +26,7 @@ import {
   getResumoCobrancaEmpresaProfissionalPro,
   iniciarCheckoutMensalEmpresaPro,
   criarPixAnualEmpresaPro,
+  regularizarAssinaturaMensalEmpresaPro,
   limparCodigoPro,
   obterAcessoAdminPro,
   salvarAcessoAdminPro,
@@ -190,6 +191,7 @@ export default function ProEmpresaProfissionalPainel(){
   const [pixAnual,setPixAnual]=useState(null);
   const [copiouPix,setCopiouPix]=useState(false);
   const [erroEmailPagamento,setErroEmailPagamento]=useState("");
+  const [regularizandoAssinatura,setRegularizandoAssinatura]=useState(false);
   const emailPagamentoRef=useRef(null);
 
   useEffect(()=>{
@@ -274,6 +276,38 @@ export default function ProEmpresaProfissionalPainel(){
 
 
   const billingState=useMemo(()=>{
+    const annualEndsAt=
+      resumoCobranca?.annual_ends_at||
+      dados?.annual_ends_at||
+      null;
+
+    const annualExpired=
+      String(
+        resumoCobranca?.billing_cycle||
+        dados?.billing_cycle||
+        ""
+      ).toLowerCase()==="annual" &&
+      (
+        (
+          annualEndsAt &&
+          new Date(annualEndsAt) <=
+            new Date()
+        ) ||
+        Number(
+          resumoCobranca
+            ?.annual_days_remaining
+        ) <= 0
+      );
+
+    if(annualExpired){
+      return {
+        status:"essential",
+        canPurchase:true,
+        title:"",
+        message:"",
+      };
+    }
+
     const status=String(
       resumoCobranca?.subscription_status||
       dados?.subscription_status||
@@ -1052,6 +1086,76 @@ export default function ProEmpresaProfissionalPainel(){
         block:"center",
       });
     });
+  }
+
+  async function regularizarAssinatura(){
+    setErro("");
+    setSucesso("");
+
+    if(!emailPagamentoValido()){
+      avisarEmailPagamento();
+      return;
+    }
+
+    setErroEmailPagamento("");
+    setRegularizandoAssinatura(true);
+
+    const {data,error}=
+      await regularizarAssinaturaMensalEmpresaPro(
+        cleanCode,
+        emailPagamento,
+        resumoCobranca
+          ?.mercado_pago_subscription_id||
+        dados
+          ?.mercado_pago_subscription_id||
+        null
+      );
+
+    if(error){
+      setErro(
+        error.message||
+        "Não foi possível consultar a assinatura atual."
+      );
+      setRegularizandoAssinatura(false);
+      return;
+    }
+
+    if(
+      data?.subscriptionStatus===
+        "active" ||
+      data?.subscriptionStatus===
+        "trial"
+    ){
+      const billingResult=
+        await getResumoCobrancaEmpresaProfissionalPro(
+          cleanCode
+        );
+
+      if(!billingResult.error){
+        setResumoCobranca(
+          billingResult.data||null
+        );
+      }
+
+      setSucesso(
+        "Assinatura sincronizada. O plano está regular."
+      );
+      setRegularizandoAssinatura(false);
+      return;
+    }
+
+    if(data?.regularizationUrl){
+      window.location.href=
+        data.regularizationUrl;
+      return;
+    }
+
+    setErro(
+      data?.found===false
+        ?"A assinatura ainda não foi localizada no Mercado Pago."
+        :"A assinatura continua pendente. Atualize o meio de pagamento no Mercado Pago e tente novamente."
+    );
+    setRegularizandoAssinatura(false);
   }
 
   async function iniciarMensal(){
@@ -2231,6 +2335,28 @@ export default function ProEmpresaProfissionalPainel(){
               <div style={{marginTop:6,fontSize:13.5,lineHeight:1.5}}>
                 {billingState.message}
               </div>
+
+              {billingState.status==="past_due"&&(
+                <button
+                  type="button"
+                  onClick={regularizarAssinatura}
+                  disabled={regularizandoAssinatura}
+                  style={{
+                    ...primaryButton,
+                    marginTop:12,
+                    background:regularizandoAssinatura
+                      ?"#9ca3af"
+                      :"#c2410c",
+                    cursor:regularizandoAssinatura
+                      ?"not-allowed"
+                      :"pointer",
+                  }}
+                >
+                  {regularizandoAssinatura
+                    ?"Consultando assinatura..."
+                    :"Regularizar assinatura"}
+                </button>
+              )}
             </div>
           )}
 
@@ -2240,7 +2366,10 @@ export default function ProEmpresaProfissionalPainel(){
           <input
             ref={emailPagamentoRef}
             type="email"
-            disabled={!billingState.canPurchase}
+            disabled={
+              !billingState.canPurchase &&
+              billingState.status!=="past_due"
+            }
             value={emailPagamento}
             onChange={event=>{
               setEmailPagamento(event.target.value);
@@ -2296,7 +2425,9 @@ export default function ProEmpresaProfissionalPainel(){
           )}
 
           <small style={{display:"block",marginTop:6,color:"#64748b"}}>
-            Preencha o e-mail antes de escolher mensal ou anual.
+            {billingState.status==="past_due"
+              ?"Informe o mesmo e-mail usado na assinatura para regularizar."
+              :"Preencha o e-mail antes de escolher mensal ou anual."}
           </small>
 
           <div className="pro-grid" style={{marginTop:18}}>
