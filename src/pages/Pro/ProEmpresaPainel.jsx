@@ -206,9 +206,49 @@ export default function ProEmpresaPainel(){
   }),[form,top3,logoFile]);
 
   const hasChanges=Boolean(savedSnapshot&&currentSnapshot!==savedSnapshot);
-  const professionalEnabled=Boolean(dados?.professional_enabled);
-  const isTrial=dados?.subscription_status==="trial";
-  const trialDaysRemaining=dados?.trial_days_remaining;
+
+  const subscriptionStatus=String(
+    dados?.subscription_status||""
+  ).trim().toLowerCase();
+
+  const graceEndsAt=
+    dados?.current_period_ends_at||
+    null;
+
+  const isPastDue=
+    subscriptionStatus==="past_due";
+
+  const isPastDueWithinGrace=
+    isPastDue &&
+    Boolean(
+      graceEndsAt &&
+      new Date(graceEndsAt)>new Date()
+    );
+
+  const professionalEnabled=Boolean(
+    dados?.professional_enabled||
+    isPastDueWithinGrace
+  );
+
+  const isTrial=
+    subscriptionStatus==="trial";
+
+  const trialDaysRemaining=
+    dados?.trial_days_remaining;
+
+  const graceDaysRemaining=
+    isPastDueWithinGrace
+      ? Math.max(
+          0,
+          Math.ceil(
+            (
+              new Date(graceEndsAt).getTime()-
+              Date.now()
+            )/
+            86400000
+          )
+        )
+      : null;
 
   useEffect(()=>{
     function warnBeforeUnload(event){
@@ -549,14 +589,16 @@ export default function ProEmpresaPainel(){
                   {professionalEnabled&&(
                     <span
                       style={{
-                        color:"#cbd5e1",
+                        color:isPastDue?"#fdba74":"#cbd5e1",
                         fontSize:11,
                         fontWeight:800,
                       }}
                     >
                       {isTrial
                         ? `Teste grátis${Number.isFinite(trialDaysRemaining)?` · ${trialDaysRemaining} dias restantes`:""}`
-                        : "R$ 59/mês"}
+                        :isPastDueWithinGrace
+                        ? `Pagamento pendente · ${graceDaysRemaining} dias de tolerância`
+                        :"R$ 59/mês"}
                     </span>
                   )}
 
@@ -621,6 +663,71 @@ export default function ProEmpresaPainel(){
         {sucesso&&(
           <div style={{...card,background:"#dcfce7",color:"#166534",border:"1px solid #bbf7d0"}}>
             {sucesso}
+          </div>
+        )}
+
+        {isPastDueWithinGrace&&(
+          <div
+            style={{
+              ...card,
+              background:"#fff7ed",
+              color:"#9a3412",
+              border:"1px solid #fed7aa",
+            }}
+          >
+            <div
+              style={{
+                display:"grid",
+                gridTemplateColumns:"1fr auto",
+                gap:16,
+                alignItems:"center",
+              }}
+            >
+              <div>
+                <strong
+                  style={{
+                    display:"block",
+                    fontSize:17,
+                  }}
+                >
+                  Pagamento pendente
+                </strong>
+
+                <p
+                  style={{
+                    margin:"6px 0 0",
+                    lineHeight:1.5,
+                  }}
+                >
+                  O Plano Profissional continua disponível por mais{" "}
+                  {graceDaysRemaining}{" "}
+                  {graceDaysRemaining===1?"dia":"dias"}.
+                  Regularize a assinatura para evitar a volta ao Plano Essencial.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={()=>
+                  navigate(
+                    `/pro/empresa/profissional/${cleanCode}`
+                  )
+                }
+                style={{
+                  minHeight:46,
+                  padding:"0 16px",
+                  borderRadius:13,
+                  border:"1px solid #c2410c",
+                  background:"#c2410c",
+                  color:"#ffffff",
+                  fontWeight:900,
+                  cursor:"pointer",
+                  whiteSpace:"nowrap",
+                }}
+              >
+                Regularizar assinatura
+              </button>
+            </div>
           </div>
         )}
 
@@ -992,15 +1099,21 @@ export default function ProEmpresaPainel(){
                       style={{
                         padding:"5px 9px",
                         borderRadius:999,
-                        background:"rgba(34,197,94,.16)",
-                        color:"#86efac",
+                        background:isPastDue
+                          ?"rgba(249,115,22,.18)"
+                          :"rgba(34,197,94,.16)",
+                        color:isPastDue
+                          ?"#fdba74"
+                          :"#86efac",
                         fontSize:12,
                         fontWeight:850,
                       }}
                     >
                       {isTrial
                         ? `Teste ativo${Number.isFinite(trialDaysRemaining)?` · ${trialDaysRemaining} dias restantes`:""}`
-                        : "Plano ativo"}
+                        :isPastDueWithinGrace
+                        ? `Pagamento pendente · ${graceDaysRemaining} dias`
+                        :"Plano ativo"}
                     </span>
                   )}
                 </div>

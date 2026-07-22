@@ -214,12 +214,40 @@ export default function ProEmpresaProfissionalPainel(){
         salvarAcessoAdminPro(cleanCode);
       }
 
-      if(!data.professional_enabled){
-        navigate(`/pro/empresa/painel/${cleanCode}`,{replace:true});
+      const subscriptionStatus=String(
+        data.subscription_status||""
+      ).trim().toLowerCase();
+
+      const graceEndsAt=
+        data.current_period_ends_at||
+        null;
+
+      const pastDueWithinGrace=
+        subscriptionStatus==="past_due" &&
+        Boolean(
+          graceEndsAt &&
+          new Date(graceEndsAt)>new Date()
+        );
+
+      if(
+        !data.professional_enabled &&
+        !pastDueWithinGrace
+      ){
+        navigate(
+          `/pro/empresa/painel/${cleanCode}`,
+          {replace:true}
+        );
         return;
       }
 
-      setDados(data);
+      setDados({
+        ...data,
+        professional_enabled:
+          Boolean(
+            data.professional_enabled||
+            pastDueWithinGrace
+          ),
+      });
       setForm({
         opening_mode:data.opening_mode||"page",
         direct_target_title:data.direct_target_title||"",
