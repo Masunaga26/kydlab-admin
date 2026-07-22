@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  adminAtualizarPecaPro,
   adminCriarPecasPro,
   adminListarPecasPro,
   adminObterAcessoPecaPro,
@@ -33,6 +34,15 @@ const STATUS_LABELS = {
   replaced: "Substituída",
   archived: "Arquivada",
 };
+
+const ENVIRONMENT_LABELS = {
+  demonstration: "Demonstração",
+  homologation: "Homologação",
+  production: "Produção",
+};
+
+const ENVIRONMENT_REGEX =
+  /\[AMBIENTE:(demonstration|homologation|production)\]/i;
 
 const inputStyle = {
   width: "100%",
@@ -65,14 +75,101 @@ const cardStyle = {
 };
 
 const buttonStyle = {
-  minHeight: "46px",
-  padding: "12px 16px",
-  borderRadius: "11px",
+  minHeight: "42px",
+  padding: "10px 14px",
+  borderRadius: "10px",
   border: "none",
   fontSize: "14px",
   fontWeight: 850,
   cursor: "pointer",
 };
+
+const miniButton = {
+  ...buttonStyle,
+  minHeight: "34px",
+  padding: "7px 10px",
+  border: "1px solid #d1d5db",
+  background: "#ffffff",
+  color: "#374151",
+};
+
+const tdStyle = {
+  padding: "12px",
+  borderBottom: "1px solid #e5e7eb",
+  fontSize: "14px",
+  verticalAlign: "top",
+};
+
+function clean(value) {
+  return String(value || "").trim();
+}
+
+function getEnvironment(notes) {
+  const match =
+    clean(notes).match(
+      ENVIRONMENT_REGEX
+    );
+
+  return match?.[1]?.toLowerCase() ||
+    "production";
+}
+
+function cleanNotes(notes) {
+  return clean(notes)
+    .replace(
+      ENVIRONMENT_REGEX,
+      ""
+    )
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function buildNotes(
+  environment,
+  notes
+) {
+  const valid =
+    ENVIRONMENT_LABELS[environment]
+      ? environment
+      : "production";
+
+  return [
+    `[AMBIENTE:${valid}]`,
+    cleanNotes(notes),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "")
+    .replace(/"/g, '""')}"`;
+}
+
+function downloadText(
+  filename,
+  content,
+  mime
+) {
+  const blob =
+    new Blob([content], {
+      type: mime,
+    });
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
 
 export default function AdminPro() {
   const [pecas, setPecas] =
@@ -81,10 +178,16 @@ export default function AdminPro() {
   const [geradas, setGeradas] =
     useState([]);
 
+  const [acessos, setAcessos] =
+    useState({});
+
   const [loading, setLoading] =
     useState(true);
 
   const [criando, setCriando] =
+    useState(false);
+
+  const [salvando, setSalvando] =
     useState(false);
 
   const [erro, setErro] =
@@ -96,23 +199,83 @@ export default function AdminPro() {
   const [busca, setBusca] =
     useState("");
 
-  const [abrindoPeca, setAbrindoPeca] =
-    useState("");
+  const [editando, setEditando] =
+    useState(null);
 
-  const [form, setForm] = useState({
-    productType: "other",
-    predefinedProfileType: "",
-    codeCount: 1,
-    physicalQuantity: 1,
-    internalLabel: "",
-    campaignName: "",
-    sellerName: "",
-    notes: "",
-  });
+  const [form, setForm] =
+    useState({
+      productType: "totem",
+      predefinedProfileType:
+        "company",
+      codeCount: 1,
+      physicalQuantity: 1,
+      internalLabel: "",
+      campaignName: "",
+      sellerName: "",
+      notes: "",
+      environment:
+        "production",
+    });
+
+  const [editForm, setEditForm] =
+    useState({
+      status: "available",
+      predefinedProfileType:
+        "company",
+      physicalQuantity: 1,
+      internalLabel: "",
+      campaignName: "",
+      sellerName: "",
+      notes: "",
+      environment:
+        "production",
+    });
 
   useEffect(() => {
     carregarPecas();
   }, []);
+
+  async function loadAccesses(
+    list
+  ) {
+    const results =
+      await Promise.all(
+        (list || []).map(
+          async (piece) => {
+            const { data, error } =
+              await adminObterAcessoPecaPro(
+                piece.id
+              );
+
+            return {
+              id: piece.id,
+              access:
+                !error && data?.found
+                  ? data
+                  : null,
+            };
+          }
+        )
+      );
+
+    setAcessos((current) => {
+      const next = {
+        ...current,
+      };
+
+      results.forEach(
+        ({ id, access }) => {
+          if (access) {
+            next[id] = access;
+          }
+        }
+      );
+
+      return next;
+    });
+
+    return results;
+  }
 
   async function carregarPecas() {
     setLoading(true);
@@ -122,10 +285,7 @@ export default function AdminPro() {
       await adminListarPecasPro();
 
     if (error) {
-      console.error(
-        "Erro ao carregar peças TAP PRO:",
-        error
-      );
+      console.error(error);
 
       setErro(
         "Não foi possível carregar as peças TAP PRO."
@@ -135,30 +295,89 @@ export default function AdminPro() {
       return;
     }
 
-    setPecas(data || []);
+    const list = data || [];
+
+    setPecas(list);
     setLoading(false);
+
+    await loadAccesses(list);
   }
 
   function handleChange(event) {
     const { name, value } =
       event.target;
 
-    setForm((anterior) => ({
-      ...anterior,
+    setForm((current) => ({
+      ...current,
       [name]: value,
     }));
   }
 
-  function aplicarPadraoProduto(
-    productType
+  function handleEditChange(
+    event
   ) {
-    setForm((anterior) => ({
-      ...anterior,
-      productType,
+    const { name, value } =
+      event.target;
+
+    setEditForm((current) => ({
+      ...current,
+      [name]: value,
     }));
   }
 
-  async function handleCriar(event) {
+  async function copiar(text) {
+    try {
+      await navigator.clipboard.writeText(
+        String(text || "")
+      );
+
+      setErro("");
+      setSucesso("Copiado!");
+    } catch (error) {
+      console.error(error);
+
+      setErro(
+        "Não foi possível copiar."
+      );
+    }
+  }
+
+  function activationLink(code) {
+    return `${BASE_URL}/pro/acesso/${code}`;
+  }
+
+  async function obterAcesso(
+    piece
+  ) {
+    if (acessos[piece.id]) {
+      return acessos[piece.id];
+    }
+
+    const { data, error } =
+      await adminObterAcessoPecaPro(
+        piece.id
+      );
+
+    if (error || !data?.found) {
+      setErro(
+        error?.message ||
+          "Acesso administrativo não encontrado."
+      );
+
+      return null;
+    }
+
+    setAcessos((current) => ({
+      ...current,
+      [piece.id]: data,
+    }));
+
+    return data;
+  }
+
+  async function handleCriar(
+    event
+  ) {
     event.preventDefault();
 
     setErro("");
@@ -169,7 +388,9 @@ export default function AdminPro() {
       Number(form.codeCount);
 
     const physicalQuantity =
-      Number(form.physicalQuantity);
+      Number(
+        form.physicalQuantity
+      );
 
     if (
       !Number.isInteger(codeCount) ||
@@ -190,7 +411,7 @@ export default function AdminPro() {
       physicalQuantity > 5000
     ) {
       setErro(
-        "A quantidade física por código deve ficar entre 1 e 5.000."
+        "A quantidade física deve ficar entre 1 e 5.000."
       );
       return;
     }
@@ -199,41 +420,54 @@ export default function AdminPro() {
 
     const { data, error } =
       await adminCriarPecasPro({
-        ...form,
+        productType:
+          form.productType,
+        predefinedProfileType:
+          form.predefinedProfileType,
         codeCount,
         physicalQuantity,
+        internalLabel:
+          form.internalLabel,
+        campaignName:
+          form.campaignName,
+        sellerName:
+          form.sellerName,
+        notes: buildNotes(
+          form.environment,
+          form.notes
+        ),
       });
 
+    setCriando(false);
+
     if (error) {
-      console.error(
-        "Erro ao criar peças TAP PRO:",
-        error
-      );
+      console.error(error);
 
       setErro(
         error.message ||
           "Não foi possível criar as peças."
       );
-
-      setCriando(false);
       return;
     }
 
-    setGeradas(data || []);
+    const created = data || [];
+
+    setGeradas(created);
+
+    await loadAccesses(created);
 
     setSucesso(
-      `${data?.length || 0} código(s) criado(s) com sucesso.`
+      `${created.length} código(s) criado(s) com sucesso.`
     );
 
-    setForm((anterior) => ({
-      ...anterior,
+    setForm((current) => ({
+      ...current,
       internalLabel: "",
       campaignName: "",
       sellerName: "",
       notes: "",
     }));
 
-    setCriando(false);
     await carregarPecas();
 
     window.scrollTo({
@@ -242,150 +476,285 @@ export default function AdminPro() {
     });
   }
 
-  async function copiarTexto(texto) {
-    try {
-      await navigator.clipboard.writeText(
-        texto
-      );
+  function startEdit(piece) {
+    setEditando(piece);
 
-      setSucesso("Copiado!");
-    } catch (error) {
-      console.error(error);
-      setErro(
-        "Não foi possível copiar."
-      );
-    }
-  }
+    setEditForm({
+      status:
+        piece.status ||
+        "available",
+      predefinedProfileType:
+        piece.predefined_profile_type ||
+        "",
+      physicalQuantity:
+        Number(
+          piece.physical_quantity
+        ) || 1,
+      internalLabel:
+        piece.internal_label || "",
+      campaignName:
+        piece.campaign_name || "",
+      sellerName:
+        piece.seller_name || "",
+      notes:
+        cleanNotes(
+          piece.notes
+        ),
+      environment:
+        getEnvironment(
+          piece.notes
+        ),
+    });
 
-  function linkPeca(code) {
-    return `${BASE_URL}/pro/acesso/${code}`;
-  }
-
-
-  async function obterAcessoDaPeca(
-    peca
-  ) {
     setErro("");
     setSucesso("");
-    setAbrindoPeca(peca.id);
+  }
 
-    const { data, error } =
-      await adminObterAcessoPecaPro(
-        peca.id
+  async function saveEdit(event) {
+    event.preventDefault();
+
+    if (!editando?.id) {
+      return;
+    }
+
+    const physicalQuantity =
+      Number(
+        editForm.physicalQuantity
       );
 
-    setAbrindoPeca("");
+    if (
+      !Number.isInteger(
+        physicalQuantity
+      ) ||
+      physicalQuantity < 1 ||
+      physicalQuantity > 5000
+    ) {
+      setErro(
+        "A quantidade física deve ficar entre 1 e 5.000."
+      );
+      return;
+    }
+
+    setSalvando(true);
+
+    const { error } =
+      await adminAtualizarPecaPro({
+        pieceId:
+          editando.id,
+        status:
+          editForm.status,
+        predefinedProfileType:
+          editForm.predefinedProfileType,
+        internalLabel:
+          editForm.internalLabel,
+        campaignName:
+          editForm.campaignName,
+        sellerName:
+          editForm.sellerName,
+        physicalQuantity,
+        notes: buildNotes(
+          editForm.environment,
+          editForm.notes
+        ),
+      });
+
+    setSalvando(false);
 
     if (error) {
-      console.error(
-        "Erro ao obter acesso da peça:",
-        error
-      );
+      console.error(error);
 
       setErro(
         error.message ||
-          "Não foi possível localizar o acesso administrativo."
+          "Não foi possível atualizar a peça."
       );
-
-      return null;
+      return;
     }
 
-    if (!data?.found) {
-      setErro(
-        "Esta peça ainda não possui um perfil ativado."
-      );
+    setEditando(null);
 
-      return null;
-    }
-
-    return data;
-  }
-
-  async function abrirPaginaPublica(
-    peca
-  ) {
-    const acesso =
-      await obterAcessoDaPeca(
-        peca
-      );
-
-    if (!acesso) return;
-
-    window.open(
-      acesso.public_url,
-      "_blank",
-      "noopener,noreferrer"
+    setSucesso(
+      "Peça atualizada com sucesso."
     );
+
+    await carregarPecas();
   }
 
-  async function abrirPainelCliente(
-    peca
+  async function openClientPanel(
+    piece
   ) {
-    const acesso =
-      await obterAcessoDaPeca(
-        peca
-      );
+    const access =
+      await obterAcesso(piece);
 
-    if (!acesso) return;
+    if (!access?.panel_url) {
+      return;
+    }
 
     window.localStorage.setItem(
       "tappro_codigo_admin",
-      acesso.access_code
+      access.access_code
     );
 
     window.open(
-      acesso.panel_url,
+      access.panel_url,
       "_blank",
       "noopener,noreferrer"
     );
   }
 
-  async function copiarCodigoAdmin(
-    peca
+  async function openPublicPage(
+    piece
   ) {
-    const acesso =
-      await obterAcessoDaPeca(
-        peca
-      );
+    const access =
+      await obterAcesso(piece);
 
-    if (!acesso) return;
+    if (!access?.public_url) {
+      return;
+    }
 
-    await copiarTexto(
-      acesso.access_code
-    );
-
-    setSucesso(
-      "Código administrativo copiado."
+    window.open(
+      access.public_url,
+      "_blank",
+      "noopener,noreferrer"
     );
   }
 
-  const pecasFiltradas =
-    useMemo(() => {
-      const termo =
-        busca.trim().toLowerCase();
+  async function exportCsv() {
+    setErro("");
+    setSucesso("");
 
-      if (!termo) {
+    const rows =
+      await Promise.all(
+        filteredPieces.map(
+          async (piece) => {
+            const access =
+              acessos[piece.id] ||
+              await obterAcesso(
+                piece
+              );
+
+            return [
+              piece.code,
+              access?.access_code || "",
+              activationLink(
+                piece.code
+              ),
+              PRODUCT_LABELS[
+                piece.product_type
+              ] ||
+                piece.product_type,
+              piece.predefined_profile_type
+                ? PROFILE_LABELS[
+                    piece.predefined_profile_type
+                  ]
+                : "Cliente escolhe",
+              piece.physical_quantity,
+              STATUS_LABELS[
+                piece.status
+              ] ||
+                piece.status,
+              ENVIRONMENT_LABELS[
+                getEnvironment(
+                  piece.notes
+                )
+              ],
+              piece.internal_label || "",
+              piece.campaign_name || "",
+              piece.seller_name || "",
+              cleanNotes(
+                piece.notes
+              ),
+            ];
+          }
+        )
+      );
+
+    const header = [
+      "codigo_fisico",
+      "codigo_admin",
+      "link_ativacao",
+      "produto",
+      "perfil",
+      "quantidade",
+      "status",
+      "ambiente",
+      "identificacao",
+      "campanha",
+      "responsavel",
+      "observacoes",
+    ];
+
+    const csv = [
+      header
+        .map(csvCell)
+        .join(";"),
+      ...rows.map((row) =>
+        row
+          .map(csvCell)
+          .join(";")
+      ),
+    ].join("\n");
+
+    downloadText(
+      `tap-pro-estoque-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`,
+      `\uFEFF${csv}`,
+      "text/csv;charset=utf-8"
+    );
+
+    setSucesso(
+      "Estoque exportado em CSV."
+    );
+  }
+
+  const filteredPieces =
+    useMemo(() => {
+      const term =
+        busca
+          .trim()
+          .toLowerCase();
+
+      if (!term) {
         return pecas;
       }
 
-      return pecas.filter((peca) => {
-        const campos = [
-          peca.code,
-          peca.product_type,
-          peca.predefined_profile_type,
-          peca.status,
-          peca.internal_label,
-          peca.campaign_name,
-          peca.seller_name,
-        ];
+      return pecas.filter(
+        (piece) => {
+          const access =
+            acessos[piece.id];
 
-        return campos.some((campo) =>
-          String(campo || "")
-            .toLowerCase()
-            .includes(termo)
-        );
-      });
-    }, [busca, pecas]);
+          const fields = [
+            piece.code,
+            access?.access_code,
+            piece.product_type,
+            piece.predefined_profile_type,
+            piece.status,
+            piece.internal_label,
+            piece.campaign_name,
+            piece.seller_name,
+            cleanNotes(
+              piece.notes
+            ),
+            ENVIRONMENT_LABELS[
+              getEnvironment(
+                piece.notes
+              )
+            ],
+          ];
+
+          return fields.some(
+            (field) =>
+              String(field || "")
+                .toLowerCase()
+                .includes(term)
+          );
+        }
+      );
+    }, [
+      busca,
+      pecas,
+      acessos,
+    ]);
 
   return (
     <main
@@ -406,11 +775,66 @@ export default function AdminPro() {
             gap: 16px;
           }
 
+          .admin-pro-generated {
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) auto auto auto;
+            gap: 10px;
+            align-items: center;
+          }
+
           .admin-pro-table-wrap {
             overflow-x: auto;
           }
 
-          @media (max-width: 720px) {
+          .admin-pro-actions-header,
+          .admin-pro-actions-cell {
+            position: sticky;
+            right: 0;
+            min-width: 300px;
+            width: 300px;
+            background: #ffffff;
+            box-shadow: -10px 0 18px rgba(17,24,39,0.06);
+            z-index: 2;
+          }
+
+          .admin-pro-actions-header {
+            background: #f9fafb;
+            z-index: 3;
+          }
+
+          .admin-pro-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+          }
+
+          .admin-pro-actions-grid button {
+            width: 100%;
+            white-space: nowrap;
+          }
+
+          .admin-pro-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background: rgba(17,24,39,0.66);
+          }
+
+          .admin-pro-modal {
+            width: min(760px, 100%);
+            max-height: calc(100vh - 36px);
+            overflow-y: auto;
+            padding: 22px;
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.28);
+          }
+
+          @media (max-width: 840px) {
+            .admin-pro-generated,
             .admin-pro-grid {
               grid-template-columns: 1fr;
             }
@@ -421,7 +845,7 @@ export default function AdminPro() {
       <section
         style={{
           width: "100%",
-          maxWidth: "1180px",
+          maxWidth: "1320px",
           margin: "0 auto",
         }}
       >
@@ -462,7 +886,7 @@ export default function AdminPro() {
               lineHeight: 1.5,
             }}
           >
-            Gere códigos, defina o produto físico e escolha se o perfil será profissional, empresa ou decidido pelo cliente.
+            Gere códigos físicos e administrativos, organize os ambientes e exporte o estoque completo.
           </p>
 
           <button
@@ -487,7 +911,6 @@ export default function AdminPro() {
 
         {erro && (
           <div
-            role="alert"
             style={{
               marginTop: "18px",
               padding: "14px 16px",
@@ -504,7 +927,6 @@ export default function AdminPro() {
 
         {sucesso && (
           <div
-            role="status"
             style={{
               marginTop: "18px",
               padding: "14px 16px",
@@ -542,86 +964,150 @@ export default function AdminPro() {
                 gap: "10px",
               }}
             >
-              {geradas.map((peca) => (
-                <div
-                  key={peca.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "1fr auto auto",
-                    gap: "10px",
-                    alignItems: "center",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    background: "#ffffff",
-                    border:
-                      "1px solid #e6d7b8",
-                  }}
-                >
-                  <div>
-                    <strong
-                      style={{
-                        fontSize: "18px",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      {peca.code}
-                    </strong>
+              {geradas.map(
+                (piece) => {
+                  const access =
+                    acessos[piece.id];
 
+                  return (
                     <div
+                      key={piece.id}
+                      className="admin-pro-generated"
                       style={{
-                        marginTop: "4px",
-                        color: "#6b7280",
-                        fontSize: "13px",
+                        padding: "12px",
+                        borderRadius: "12px",
+                        background: "#ffffff",
+                        border:
+                          "1px solid #e6d7b8",
                       }}
                     >
-                      {PRODUCT_LABELS[
-                        peca.product_type
-                      ] ||
-                        peca.product_type}
-                      {" · "}
-                      {peca.physical_quantity}
-                      {" peça(s) física(s)"}
+                      <div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "18px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div>
+                            <small>
+                              CÓDIGO FÍSICO
+                            </small>
+                            <div
+                              style={{
+                                fontSize: "19px",
+                                fontWeight: 900,
+                                letterSpacing: "1px",
+                              }}
+                            >
+                              {piece.code}
+                            </div>
+                          </div>
+
+                          <div>
+                            <small>
+                              CÓDIGO ADMIN
+                            </small>
+                            <div
+                              style={{
+                                fontSize: "19px",
+                                fontWeight: 900,
+                                letterSpacing: "1px",
+                              }}
+                            >
+                              {access?.access_code ||
+                                "Carregando..."}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "7px",
+                            color: "#6b7280",
+                            fontSize: "13px",
+                          }}
+                        >
+                          {PRODUCT_LABELS[
+                            piece.product_type
+                          ] ||
+                            piece.product_type}
+                          {" · "}
+                          {piece.physical_quantity}
+                          {" peça(s) · "}
+                          {ENVIRONMENT_LABELS[
+                            getEnvironment(
+                              piece.notes
+                            )
+                          ]}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copiar(
+                            piece.code
+                          )
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background: "#111827",
+                          color: "#ffffff",
+                        }}
+                      >
+                        Copiar físico
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={
+                          !access?.access_code
+                        }
+                        onClick={() =>
+                          copiar(
+                            access?.access_code
+                          )
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background:
+                            access?.access_code
+                              ? "#b8892f"
+                              : "#9ca3af",
+                          color: "#ffffff",
+                          cursor:
+                            access?.access_code
+                              ? "pointer"
+                              : "not-allowed",
+                        }}
+                      >
+                        Copiar admin
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copiar(
+                            activationLink(
+                              piece.code
+                            )
+                          )
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background: "#ffffff",
+                          color: "#374151",
+                          border:
+                            "1px solid #d1d5db",
+                        }}
+                      >
+                        Copiar link
+                      </button>
                     </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copiarTexto(peca.code)
-                    }
-                    style={{
-                      ...buttonStyle,
-                      minHeight: "40px",
-                      padding: "9px 12px",
-                      background: "#111827",
-                      color: "#ffffff",
-                    }}
-                  >
-                    Copiar código
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copiarTexto(
-                        linkPeca(peca.code)
-                      )
-                    }
-                    style={{
-                      ...buttonStyle,
-                      minHeight: "40px",
-                      padding: "9px 12px",
-                      background: "#ffffff",
-                      color: "#374151",
-                      border:
-                        "1px solid #d1d5db",
-                    }}
-                  >
-                    Copiar link da peça
-                  </button>
-                </div>
-              ))}
+                  );
+                }
+              )}
             </div>
           </section>
         )}
@@ -647,10 +1133,12 @@ export default function AdminPro() {
               lineHeight: 1.5,
             }}
           >
-            O código terá 10 caracteres: três números e sete letras. As letras I e O não são usadas para evitar confusão com 1 e 0.
+            O código físico e o código administrativo são gerados e vinculados imediatamente para estoque e impressão.
           </p>
 
-          <form onSubmit={handleCriar}>
+          <form
+            onSubmit={handleCriar}
+          >
             <div className="admin-pro-grid">
               <div>
                 <label style={labelStyle}>
@@ -660,11 +1148,7 @@ export default function AdminPro() {
                 <select
                   name="productType"
                   value={form.productType}
-                  onChange={(event) =>
-                    aplicarPadraoProduto(
-                      event.target.value
-                    )
-                  }
+                  onChange={handleChange}
                   style={inputStyle}
                 >
                   <option value="totem">
@@ -712,6 +1196,29 @@ export default function AdminPro() {
 
               <div>
                 <label style={labelStyle}>
+                  Ambiente
+                </label>
+
+                <select
+                  name="environment"
+                  value={form.environment}
+                  onChange={handleChange}
+                  style={inputStyle}
+                >
+                  <option value="demonstration">
+                    Demonstração
+                  </option>
+                  <option value="homologation">
+                    Homologação
+                  </option>
+                  <option value="production">
+                    Produção
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>
                   Quantidade de códigos
                 </label>
 
@@ -724,16 +1231,6 @@ export default function AdminPro() {
                   onChange={handleChange}
                   style={inputStyle}
                 />
-
-                <small
-                  style={{
-                    display: "block",
-                    marginTop: "6px",
-                    color: "#6b7280",
-                  }}
-                >
-                  Use mais de um para criar códigos individuais por vendedor ou peça.
-                </small>
               </div>
 
               <div>
@@ -752,16 +1249,6 @@ export default function AdminPro() {
                   onChange={handleChange}
                   style={inputStyle}
                 />
-
-                <small
-                  style={{
-                    display: "block",
-                    marginTop: "6px",
-                    color: "#6b7280",
-                  }}
-                >
-                  Exemplo: 1 código impresso em 100 chaveiros.
-                </small>
               </div>
 
               <div>
@@ -773,7 +1260,7 @@ export default function AdminPro() {
                   name="internalLabel"
                   value={form.internalLabel}
                   onChange={handleChange}
-                  placeholder="Ex: Totem balcão principal"
+                  placeholder="Ex: LOTE 001 - KYD LAB"
                   style={inputStyle}
                 />
               </div>
@@ -787,21 +1274,21 @@ export default function AdminPro() {
                   name="campaignName"
                   value={form.campaignName}
                   onChange={handleChange}
-                  placeholder="Ex: Feira julho"
+                  placeholder="Ex: Mostruário"
                   style={inputStyle}
                 />
               </div>
 
               <div>
                 <label style={labelStyle}>
-                  Vendedor ou responsável
+                  Responsável
                 </label>
 
                 <input
                   name="sellerName"
                   value={form.sellerName}
                   onChange={handleChange}
-                  placeholder="Ex: Carlos"
+                  placeholder="Ex: Fabio"
                   style={inputStyle}
                 />
               </div>
@@ -838,7 +1325,7 @@ export default function AdminPro() {
               }}
             >
               {criando
-                ? "Gerando códigos..."
+                ? "Gerando..."
                 : "Gerar códigos TAP PRO"}
             </button>
           </form>
@@ -875,31 +1362,67 @@ export default function AdminPro() {
                   color: "#6b7280",
                 }}
               >
-                {pecasFiltradas.length} registro(s)
+                {filteredPieces.length} registro(s)
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={carregarPecas}
+            <div
               style={{
-                ...buttonStyle,
-                background: "#ffffff",
-                color: "#374151",
-                border:
-                  "1px solid #d1d5db",
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
               }}
             >
-              Atualizar lista
-            </button>
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={
+                  !filteredPieces.length
+                }
+                style={{
+                  ...buttonStyle,
+                  background: "#111827",
+                  color: "#ffffff",
+                }}
+              >
+                Baixar planilha do estoque
+              </button>
+
+              <div
+                style={{
+                  width: "100%",
+                  color: "#6b7280",
+                  fontSize: "12px",
+                  lineHeight: 1.4,
+                }}
+              >
+                Gera uma planilha compatível com Excel contendo códigos, links, status e identificação das peças.
+              </div>
+
+              <button
+                type="button"
+                onClick={carregarPecas}
+                style={{
+                  ...buttonStyle,
+                  background: "#ffffff",
+                  color: "#374151",
+                  border:
+                    "1px solid #d1d5db",
+                }}
+              >
+                Atualizar lista
+              </button>
+            </div>
           </div>
 
           <input
             value={busca}
             onChange={(event) =>
-              setBusca(event.target.value)
+              setBusca(
+                event.target.value
+              )
             }
-            placeholder="Buscar código, produto, campanha ou vendedor..."
+            placeholder="Buscar código físico, código admin, ambiente, campanha ou responsável..."
             style={{
               ...inputStyle,
               marginTop: "18px",
@@ -907,11 +1430,7 @@ export default function AdminPro() {
           />
 
           {loading ? (
-            <p
-              style={{
-                color: "#6b7280",
-              }}
-            >
+            <p>
               Carregando peças...
             </p>
           ) : (
@@ -924,25 +1443,32 @@ export default function AdminPro() {
               <table
                 style={{
                   width: "100%",
-                  minWidth: "1320px",
+                  minWidth: "1480px",
                   borderCollapse: "collapse",
                 }}
               >
                 <thead>
                   <tr>
                     {[
-                      "Código",
+                      "Código físico",
+                      "Código admin",
                       "Produto",
                       "Perfil",
-                      "Quantidade",
+                      "Qtd.",
                       "Status",
+                      "Ambiente",
                       "Identificação",
                       "Campanha",
                       "Responsável",
                       "Ações",
-                    ].map((titulo) => (
+                    ].map((title) => (
                       <th
-                        key={titulo}
+                        key={title}
+                        className={
+                          title === "Ações"
+                            ? "admin-pro-actions-header"
+                            : undefined
+                        }
                         style={{
                           padding: "12px",
                           textAlign: "left",
@@ -952,138 +1478,165 @@ export default function AdminPro() {
                             "1px solid #e5e7eb",
                         }}
                       >
-                        {titulo}
+                        {title}
                       </th>
                     ))}
                   </tr>
                 </thead>
 
                 <tbody>
-                  {pecasFiltradas.map(
-                    (peca) => (
-                      <tr key={peca.id}>
-                        <td style={tdStyle}>
-                          <strong>
-                            {peca.code}
-                          </strong>
-                        </td>
+                  {filteredPieces.map(
+                    (piece) => {
+                      const access =
+                        acessos[piece.id];
 
-                        <td style={tdStyle}>
-                          {PRODUCT_LABELS[
-                            peca.product_type
-                          ] ||
-                            peca.product_type}
-                        </td>
+                      return (
+                        <tr
+                          key={piece.id}
+                        >
+                          <td style={tdStyle}>
+                            <strong>
+                              {piece.code}
+                            </strong>
+                          </td>
 
-                        <td style={tdStyle}>
-                          {peca.predefined_profile_type
-                            ? PROFILE_LABELS[
-                                peca.predefined_profile_type
-                              ]
-                            : "Cliente escolhe"}
-                        </td>
+                          <td style={tdStyle}>
+                            <strong>
+                              {access?.access_code ||
+                                "..."}
+                            </strong>
+                          </td>
 
-                        <td style={tdStyle}>
-                          {peca.physical_quantity}
-                        </td>
+                          <td style={tdStyle}>
+                            {PRODUCT_LABELS[
+                              piece.product_type
+                            ] ||
+                              piece.product_type}
+                          </td>
 
-                        <td style={tdStyle}>
-                          {STATUS_LABELS[
-                            peca.status
-                          ] ||
-                            peca.status}
-                        </td>
+                          <td style={tdStyle}>
+                            {piece.predefined_profile_type
+                              ? PROFILE_LABELS[
+                                  piece.predefined_profile_type
+                                ]
+                              : "Cliente escolhe"}
+                          </td>
 
-                        <td style={tdStyle}>
-                          {peca.internal_label ||
-                            "-"}
-                        </td>
+                          <td style={tdStyle}>
+                            {piece.physical_quantity}
+                          </td>
 
-                        <td style={tdStyle}>
-                          {peca.campaign_name ||
-                            "-"}
-                        </td>
+                          <td style={tdStyle}>
+                            {STATUS_LABELS[
+                              piece.status
+                            ] ||
+                              piece.status}
+                          </td>
 
-                        <td style={tdStyle}>
-                          {peca.seller_name ||
-                            "-"}
-                        </td>
+                          <td style={tdStyle}>
+                            {ENVIRONMENT_LABELS[
+                              getEnvironment(
+                                piece.notes
+                              )
+                            ]}
+                          </td>
 
-                        <td style={tdStyle}>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "7px",
-                            }}
+                          <td style={tdStyle}>
+                            {piece.internal_label ||
+                              "-"}
+                          </td>
+
+                          <td style={tdStyle}>
+                            {piece.campaign_name ||
+                              "-"}
+                          </td>
+
+                          <td style={tdStyle}>
+                            {piece.seller_name ||
+                              "-"}
+                          </td>
+
+                          <td
+                            style={tdStyle}
+                            className="admin-pro-actions-cell"
                           >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                copiarTexto(
-                                  peca.code
-                                )
-                              }
-                              style={miniButton}
-                            >
-                              Código público
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                copiarTexto(
-                                  linkPeca(
-                                    peca.code
-                                  )
-                                )
-                              }
-                              style={miniButton}
-                            >
-                              Link da peça
-                            </button>
-
-                            {peca.status ===
-                              "activated" && (
+                            <div className="admin-pro-actions-grid">
                               <button
                                 type="button"
-                                disabled={
-                                  abrindoPeca ===
-                                  peca.id
-                                }
                                 onClick={() =>
-                                  abrirPaginaPublica(
-                                    peca
+                                  startEdit(
+                                    piece
                                   )
                                 }
                                 style={{
                                   ...miniButton,
                                   background:
-                                    "#f0fdf4",
+                                    "#eff6ff",
                                   color:
-                                    "#166534",
+                                    "#1d4ed8",
                                   border:
-                                    "1px solid #bbf7d0",
+                                    "1px solid #bfdbfe",
                                 }}
                               >
-                                Página pública
+                                Editar peça
                               </button>
-                            )}
 
-                            {(peca.status ===
-                              "available" ||
-                              peca.status ===
-                                "activated") && (
-                              <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  copiar(
+                                    piece.code
+                                  )
+                                }
+                                style={miniButton}
+                              >
+                                Código físico
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  !access?.access_code
+                                }
+                                onClick={() =>
+                                  copiar(
+                                    access?.access_code
+                                  )
+                                }
+                                style={{
+                                  ...miniButton,
+                                  background:
+                                    "#111827",
+                                  color:
+                                    "#ffffff",
+                                }}
+                              >
+                                Código admin
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  copiar(
+                                    activationLink(
+                                      piece.code
+                                    )
+                                  )
+                                }
+                                style={miniButton}
+                              >
+                                Link
+                              </button>
+
+                              {(piece.status ===
+                                "available" ||
+                                piece.status ===
+                                  "activated") && (
                                 <button
                                   type="button"
-                                  disabled={
-                                    abrindoPeca ===
-                                    peca.id
-                                  }
                                   onClick={() =>
-                                    abrirPainelCliente(
-                                      peca
+                                    openClientPanel(
+                                      piece
                                     )
                                   }
                                   style={{
@@ -1098,41 +1651,40 @@ export default function AdminPro() {
                                 >
                                   Painel do cliente
                                 </button>
+                              )}
 
+                              {piece.status ===
+                                "activated" && (
                                 <button
                                   type="button"
-                                  disabled={
-                                    abrindoPeca ===
-                                    peca.id
-                                  }
                                   onClick={() =>
-                                    copiarCodigoAdmin(
-                                      peca
+                                    openPublicPage(
+                                      piece
                                     )
                                   }
                                   style={{
                                     ...miniButton,
                                     background:
-                                      "#111827",
+                                      "#f0fdf4",
                                     color:
-                                      "#ffffff",
+                                      "#166534",
                                     border:
-                                      "1px solid #111827",
+                                      "1px solid #bbf7d0",
                                   }}
                                 >
-                                  Código admin
+                                  Página pública
                                 </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
                   )}
                 </tbody>
               </table>
 
-              {!pecasFiltradas.length && (
+              {!filteredPieces.length && (
                 <p
                   style={{
                     padding: "20px",
@@ -1147,24 +1699,298 @@ export default function AdminPro() {
           )}
         </section>
       </section>
+
+      {editando && (
+        <div
+          className="admin-pro-modal-backdrop"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setEditando(null);
+            }
+          }}
+        >
+          <section
+            className="admin-pro-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                gap: "12px",
+                alignItems: "flex-start",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    margin: "0 0 4px",
+                    color: "#6b7280",
+                    fontWeight: 800,
+                  }}
+                >
+                  Código: {editando.code}
+                </p>
+
+                <h2
+                  style={{
+                    margin: 0,
+                  }}
+                >
+                  Editar peça TAP PRO
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setEditando(null)
+                }
+                style={{
+                  ...miniButton,
+                  fontSize: "18px",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={saveEdit}
+              style={{
+                marginTop: "20px",
+              }}
+            >
+              <div className="admin-pro-grid">
+                <div>
+                  <label style={labelStyle}>
+                    Ambiente
+                  </label>
+
+                  <select
+                    name="environment"
+                    value={
+                      editForm.environment
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  >
+                    <option value="demonstration">
+                      Demonstração
+                    </option>
+                    <option value="homologation">
+                      Homologação
+                    </option>
+                    <option value="production">
+                      Produção
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Status
+                  </label>
+
+                  <select
+                    name="status"
+                    value={
+                      editForm.status
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  >
+                    <option value="available">
+                      Disponível
+                    </option>
+                    <option value="activated">
+                      Ativada
+                    </option>
+                    <option value="blocked">
+                      Bloqueada
+                    </option>
+                    <option value="replaced">
+                      Substituída
+                    </option>
+                    <option value="archived">
+                      Arquivada
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Perfil
+                  </label>
+
+                  <select
+                    name="predefinedProfileType"
+                    value={
+                      editForm.predefinedProfileType
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  >
+                    <option value="">
+                      Cliente escolhe
+                    </option>
+                    <option value="professional">
+                      Profissional
+                    </option>
+                    <option value="company">
+                      Empresa
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Quantidade física
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max="5000"
+                    name="physicalQuantity"
+                    value={
+                      editForm.physicalQuantity
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Identificação interna
+                  </label>
+
+                  <input
+                    name="internalLabel"
+                    value={
+                      editForm.internalLabel
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Campanha
+                  </label>
+
+                  <input
+                    name="campaignName"
+                    value={
+                      editForm.campaignName
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Responsável
+                  </label>
+
+                  <input
+                    name="sellerName"
+                    value={
+                      editForm.sellerName
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    Observações
+                  </label>
+
+                  <input
+                    name="notes"
+                    value={
+                      editForm.notes
+                    }
+                    onChange={
+                      handleEditChange
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "1fr 1fr",
+                  gap: "10px",
+                  marginTop: "20px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditando(null)
+                  }
+                  style={{
+                    ...buttonStyle,
+                    background: "#ffffff",
+                    color: "#374151",
+                    border:
+                      "1px solid #d1d5db",
+                  }}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  style={{
+                    ...buttonStyle,
+                    background: salvando
+                      ? "#9ca3af"
+                      : "#111827",
+                    color: "#ffffff",
+                    cursor: salvando
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                >
+                  {salvando
+                    ? "Salvando..."
+                    : "Salvar alterações"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
-
-const tdStyle = {
-  padding: "12px",
-  borderBottom: "1px solid #e5e7eb",
-  fontSize: "14px",
-  verticalAlign: "top",
-};
-
-const miniButton = {
-  minHeight: "34px",
-  padding: "7px 10px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#374151",
-  fontWeight: 800,
-  cursor: "pointer",
-};

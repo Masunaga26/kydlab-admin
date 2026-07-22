@@ -272,6 +272,74 @@ export default function ProEmpresaProfissionalPainel(){
       : "Teste grátis ativo";
   },[dados]);
 
+
+  const billingState=useMemo(()=>{
+    const status=String(
+      resumoCobranca?.subscription_status||
+      dados?.subscription_status||
+      ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace("canceled","cancelled");
+
+    if(status==="trial"){
+      return {
+        status,
+        canPurchase:false,
+        title:"Período gratuito já ativo",
+        message:"Sua empresa já está usando os 30 dias grátis. Uma nova assinatura ou um novo Pix anual não pode ser gerado agora.",
+      };
+    }
+
+    if(status==="active"){
+      return {
+        status,
+        canPurchase:false,
+        title:"Plano Profissional já ativo",
+        message:"Seu plano atual está vigente. Não é necessário e não é permitido gerar outra cobrança.",
+      };
+    }
+
+    if(status==="past_due"){
+      return {
+        status,
+        canPurchase:false,
+        title:"Regularização necessária",
+        message:"Existe uma pendência na assinatura atual. Regularize o pagamento existente em vez de iniciar uma nova contratação.",
+      };
+    }
+
+    const professionalEnabled=
+      Boolean(
+        resumoCobranca?.professional_enabled
+      );
+
+    if(
+      professionalEnabled&&
+      !["essential","cancelled"].includes(status)
+    ){
+      return {
+        status,
+        canPurchase:false,
+        title:"Plano Profissional já liberado",
+        message:"Os recursos profissionais já estão ativos para esta empresa. Uma nova cobrança foi bloqueada por segurança.",
+      };
+    }
+
+    return {
+      status:status||"essential",
+      canPurchase:
+        !status||
+        ["essential","cancelled"].includes(status),
+      title:"",
+      message:"",
+    };
+  },[
+    resumoCobranca,
+    dados,
+  ]);
+
   function change(event){
     const {name,value}=event.target;
     setForm(current=>({...current,[name]:value}));
@@ -990,6 +1058,14 @@ export default function ProEmpresaProfissionalPainel(){
     setErro("");
     setSucesso("");
 
+    if(!billingState.canPurchase){
+      setErro(
+        billingState.message||
+        "Uma nova contratação foi bloqueada por segurança."
+      );
+      return;
+    }
+
     if(!emailPagamentoValido()){
       avisarEmailPagamento();
       return;
@@ -1039,6 +1115,14 @@ export default function ProEmpresaProfissionalPainel(){
     setSucesso("");
     setPixAnual(null);
     setCopiouPix(false);
+
+    if(!billingState.canPurchase){
+      setErro(
+        billingState.message||
+        "Uma nova contratação foi bloqueada por segurança."
+      );
+      return;
+    }
 
     if(!emailPagamentoValido()){
       avisarEmailPagamento();
@@ -2120,12 +2204,43 @@ export default function ProEmpresaProfissionalPainel(){
             </div>
           )}
 
+
+          {!billingState.canPurchase&&(
+            <div
+              style={{
+                marginTop:14,
+                padding:16,
+                borderRadius:14,
+                background:
+                  billingState.status==="past_due"
+                    ?"#fff7ed"
+                    :"#f8fafc",
+                border:
+                  billingState.status==="past_due"
+                    ?"1px solid #fdba74"
+                    :"1px solid #cbd5e1",
+                color:
+                  billingState.status==="past_due"
+                    ?"#9a3412"
+                    :"#334155",
+              }}
+            >
+              <strong>
+                {billingState.title}
+              </strong>
+              <div style={{marginTop:6,fontSize:13.5,lineHeight:1.5}}>
+                {billingState.message}
+              </div>
+            </div>
+          )}
+
           <label style={{display:"block",marginTop:18,fontWeight:850}}>
             E-mail para o pagamento
           </label>
           <input
             ref={emailPagamentoRef}
             type="email"
+            disabled={!billingState.canPurchase}
             value={emailPagamento}
             onChange={event=>{
               setEmailPagamento(event.target.value);
@@ -2144,9 +2259,17 @@ export default function ProEmpresaProfissionalPainel(){
               border:erroEmailPagamento
                 ?"2px solid #dc2626"
                 :"1px solid #cbd5e1",
-              background:erroEmailPagamento
+              background:!billingState.canPurchase
+                ?"#f1f5f9"
+                :erroEmailPagamento
                 ?"#fff7f7"
                 :"#ffffff",
+              color:!billingState.canPurchase
+                ?"#64748b"
+                :"#111827",
+              cursor:!billingState.canPurchase
+                ?"not-allowed"
+                :"text",
               fontSize:15,
               boxSizing:"border-box",
               outline:"none",
@@ -2196,16 +2319,29 @@ export default function ProEmpresaProfissionalPainel(){
               <button
                 type="button"
                 onClick={iniciarMensal}
-                disabled={Boolean(processandoPagamento)}
+                disabled={
+                  !billingState.canPurchase||
+                  Boolean(processandoPagamento)
+                }
                 style={{
                   ...primaryButton,
                   width:"100%",
                   marginTop:17,
-                  background:processandoPagamento?"#9ca3af":"#111827",
-                  cursor:processandoPagamento?"not-allowed":"pointer",
+                  background:
+                    !billingState.canPurchase||
+                    processandoPagamento
+                      ?"#9ca3af"
+                      :"#111827",
+                  cursor:
+                    !billingState.canPurchase||
+                    processandoPagamento
+                      ?"not-allowed"
+                      :"pointer",
                 }}
               >
-                {processandoPagamento==="monthly"
+                {!billingState.canPurchase
+                  ?"Contratação indisponível"
+                  :processandoPagamento==="monthly"
                   ?"Abrindo checkout..."
                   :"Começar 30 dias grátis"}
               </button>
@@ -2230,16 +2366,29 @@ export default function ProEmpresaProfissionalPainel(){
               <button
                 type="button"
                 onClick={iniciarAnual}
-                disabled={Boolean(processandoPagamento)}
+                disabled={
+                  !billingState.canPurchase||
+                  Boolean(processandoPagamento)
+                }
                 style={{
                   ...primaryButton,
                   width:"100%",
                   marginTop:17,
-                  background:processandoPagamento?"#9ca3af":"#6d28d9",
-                  cursor:processandoPagamento?"not-allowed":"pointer",
+                  background:
+                    !billingState.canPurchase||
+                    processandoPagamento
+                      ?"#9ca3af"
+                      :"#6d28d9",
+                  cursor:
+                    !billingState.canPurchase||
+                    processandoPagamento
+                      ?"not-allowed"
+                      :"pointer",
                 }}
               >
-                {processandoPagamento==="annual"
+                {!billingState.canPurchase
+                  ?"Contratação indisponível"
+                  :processandoPagamento==="annual"
                   ?"Gerando Pix..."
                   :"Pagar R$ 500 no Pix"}
               </button>
