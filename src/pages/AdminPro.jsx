@@ -104,6 +104,42 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function getProfileIdentification(piece, access) {
+  const candidates = [
+    piece?.internal_label,
+    access?.display_name,
+    access?.professional_name,
+    access?.company_name,
+    access?.profile_name,
+    access?.name,
+    access?.title,
+    access?.profile?.display_name,
+    access?.profile?.professional_name,
+    access?.profile?.company_name,
+    piece?.display_name,
+    piece?.professional_name,
+    piece?.company_name,
+    piece?.profile_name,
+    piece?.name,
+  ];
+
+  const found = candidates.find((value) => clean(value));
+
+  if (found) {
+    return clean(found);
+  }
+
+  if (piece?.status === "activated") {
+    return piece?.predefined_profile_type === "professional"
+      ? "Profissional ativado"
+      : piece?.predefined_profile_type === "company"
+      ? "Empresa ativada"
+      : "Perfil ativado";
+  }
+
+  return "-";
+}
+
 function getEnvironment(notes) {
   const match =
     clean(notes).match(
@@ -657,7 +693,7 @@ export default function AdminPro() {
                   piece.notes
                 )
               ],
-              piece.internal_label || "",
+              getProfileIdentification(piece, access),
               piece.campaign_name || "",
               piece.seller_name || "",
               cleanNotes(
@@ -730,6 +766,7 @@ export default function AdminPro() {
             piece.predefined_profile_type,
             piece.status,
             piece.internal_label,
+            getProfileIdentification(piece, access),
             piece.campaign_name,
             piece.seller_name,
             cleanNotes(
@@ -1542,8 +1579,33 @@ export default function AdminPro() {
                           </td>
 
                           <td style={tdStyle}>
-                            {piece.internal_label ||
-                              "-"}
+                            <strong
+                              style={{
+                                display: "block",
+                                color: "#111827",
+                              }}
+                            >
+                              {getProfileIdentification(
+                                piece,
+                                access
+                              )}
+                            </strong>
+
+                            {piece.internal_label &&
+                              getProfileIdentification(
+                                piece,
+                                access
+                              ) !== piece.internal_label && (
+                                <small
+                                  style={{
+                                    display: "block",
+                                    marginTop: "4px",
+                                    color: "#6b7280",
+                                  }}
+                                >
+                                  Interno: {piece.internal_label}
+                                </small>
+                              )}
                           </td>
 
                           <td style={tdStyle}>

@@ -1,21 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
-import {
-  useNavigate,
-  useParams,
-} from "react-router-dom";
-
+  ImagePlus,
+  UserRound,
+} from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   atualizarProfissionalNovoPro,
-  solicitarModuloPerfilPro,
-  criarCheckoutModuloPro,
   codigoProValido,
   getProfessionalDashboardNovoPro,
-  listarCatalogoModulosClientePro,
   limparCodigoPro,
   obterAcessoAdminPro,
   uploadImagemPro,
@@ -26,62 +18,38 @@ const MODULES = [
   ["linkedin", "LinkedIn"],
   ["website", "Site"],
   ["portfolio", "Portfólio"],
-  ["scheduling", "Agendamento"],
   ["maps", "Localização"],
-  ["company_page", "Conheça a empresa"],
   ["email", "E-mail"],
   ["phone", "Telefone"],
 ];
 
+const ALLOWED_MODULE_CODES = new Set(MODULES.map((item) => item[0]));
+
 const GOALS = {
   auto: {
     title: "Automático",
-    result:
-      "O TAP PRO usa a melhor ação disponível.",
-    tip:
-      "Boa opção para começar.",
+    result: "O TAP PRO usa a melhor ação disponível.",
+    tip: "Boa opção para começar.",
   },
   whatsapp: {
     title: "Mais contatos",
-    result:
-      "A chamada final leva as pessoas ao WhatsApp.",
-    tip:
-      "Ideal para orçamento e atendimento.",
-  },
-  scheduling: {
-    title: "Mais agendamentos",
-    result:
-      "A chamada final incentiva o agendamento.",
-    tip:
-      "Cadastre um link de agenda atualizado.",
+    result: "A chamada principal leva as pessoas ao WhatsApp.",
+    tip: "Ideal para orçamento e atendimento.",
   },
   instagram: {
     title: "Mais seguidores",
-    result:
-      "A chamada final convida a acompanhar seu Instagram.",
-    tip:
-      "Use conteúdo recente e profissional.",
+    result: "A chamada principal convida a acompanhar seu Instagram.",
+    tip: "Use conteúdo recente e profissional.",
   },
   portfolio: {
     title: "Mais visitas ao portfólio",
-    result:
-      "A chamada final mostra seus trabalhos.",
-    tip:
-      "Destaque projetos e resultados.",
+    result: "A chamada principal destaca seus trabalhos.",
+    tip: "Mostre projetos e resultados.",
   },
   share: {
     title: "Mais indicações",
-    result:
-      "A chamada final incentiva o compartilhamento do perfil.",
-    tip:
-      "Ideal para profissionais que crescem por indicação.",
-  },
-  company_page: {
-    title: "Apresentar minha empresa",
-    result:
-      "A chamada final conecta seu perfil à página da empresa.",
-    tip:
-      "Use quando sua empresa também tiver uma página TAP PRO.",
+    result: "A chamada principal incentiva o compartilhamento do perfil.",
+    tip: "Ideal para quem cresce por indicação.",
   },
 };
 
@@ -119,519 +87,198 @@ const input = {
   width: "100%",
   minHeight: 48,
   padding: "12px 13px",
-  borderRadius: 11,
+  borderRadius: 12,
   border: "1px solid #d1d5db",
   boxSizing: "border-box",
   fontSize: 15,
   background: "#ffffff",
   color: "#111827",
+  outline: "none",
 };
 
-const card = {
-  marginTop: 18,
-  padding: 22,
-  borderRadius: 20,
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  boxShadow:
-    "0 12px 30px rgba(0,0,0,0.06)",
+const section = {
+  marginTop: 0,
+  padding: "28px 4px",
+  borderRadius: 0,
+  background: "transparent",
+  border: "none",
+  borderBottom: "1px solid #e5e7eb",
+  boxShadow: "none",
 };
 
-function Field({
-  label,
-  name,
-  value,
-  onChange,
-}) {
+function digits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function Field({ label, ...props }) {
   return (
-    <div style={{marginBottom:16}}>
-      <label
-        style={{
-          display:"block",
-          marginBottom:7,
-          fontWeight:800,
-        }}
-      >
+    <div>
+      <label style={{ display: "block", marginBottom: 7, fontWeight: 800 }}>
         {label}
       </label>
-      <input
-        name={name}
-        value={value}
-        onChange={onChange}
-        style={input}
-      />
+      <input {...props} style={input} />
     </div>
   );
 }
 
-function digits(value) {
-  return String(value || "").replace(
-    /\D/g,
-    ""
-  );
-}
-
-
-function formatarPrecoModulo(
-  item
-) {
-  if (
-    item.billing_type === "free"
-  ) {
-    return "Gratuito";
-  }
-
-  const preco = (
-    Number(
-      item.price_cents || 0
-    ) / 100
-  ).toLocaleString(
-    "pt-BR",
-    {
-      style: "currency",
-      currency: "BRL",
-    }
-  );
-
-  if (
-    item.billing_type === "monthly"
-  ) {
-    return `${preco}/mês`;
-  }
-
-  if (
-    item.billing_type === "annual"
-  ) {
-    return `${preco}/ano`;
-  }
-
-  return preco;
-}
-
-function ModuloCatalogoCard({
-  item,
-  aberto,
-  onToggle,
-  onRequest,
-  processing,
-}) {
-  const ativoNoPerfil =
-    item.profile_module_status ===
-      "active" ||
-    item.profile_module_status ===
-      "included" ||
-    item.profile_module_status ===
-      "trial";
-
-  const pedidoPendente =
-    item.order_status ===
-      "pending";
-
-  const testeDisponivel =
-    Number(
-      item.trial_days || 0
-    ) > 0 &&
-    !item.trial_used_at;
-
+function SectionTitle({ kicker, title, description, aside }) {
   return (
-    <article
+    <div
       style={{
-        padding: "17px",
-        borderRadius: "16px",
-        background: "#ffffff",
-        border: item.is_featured
-          ? "1px solid #d6c39c"
-          : "1px solid #e5e7eb",
-        boxShadow:
-          "0 8px 22px rgba(17,24,39,0.05)",
+        marginBottom: 18,
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 16,
+        alignItems: "start",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent:
-            "space-between",
-          gap: "12px",
-          alignItems: "flex-start",
-        }}
-      >
-        <div>
-          {item.is_featured && (
-            <p
-              style={{
-                margin: "0 0 5px",
-                color: "#b8892f",
-                fontSize: "11px",
-                fontWeight: 900,
-                textTransform:
-                  "uppercase",
-                letterSpacing: "0.7px",
-              }}
-            >
-              Recomendado
-            </p>
-          )}
-
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "18px",
-            }}
-          >
-            {item.name}
-          </h3>
-        </div>
-
-        <span
-          style={{
-            padding: "6px 9px",
-            borderRadius: "999px",
-            background: ativoNoPerfil
-              ? "#dcfce7"
-              : "#f3f4f6",
-            color: ativoNoPerfil
-              ? "#166534"
-              : "#374151",
-            fontSize: "12px",
-            fontWeight: 850,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {ativoNoPerfil
-            ? item.profile_module_status ===
-              "trial"
-              ? "Em teste"
-              : "Ativo"
-            : pedidoPendente
-              ? "Solicitado"
-              : formatarPrecoModulo(
-                  item
-                )}
-        </span>
-      </div>
-
-      {item.short_description && (
+      <div>
         <p
           style={{
-            margin: "10px 0 0",
-            color: "#4b5563",
-            lineHeight: 1.5,
-            fontSize: "14px",
+            margin: "0 0 5px",
+            fontSize: 11,
+            fontWeight: 900,
+            color: "#8a641f",
+            textTransform: "uppercase",
+            letterSpacing: ".6px",
           }}
         >
-          {item.short_description}
+          {kicker}
         </p>
-      )}
 
-      {item.trial_days > 0 &&
-        !ativoNoPerfil && (
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 22,
+            color: "#111827",
+          }}
+        >
+          {title}
+        </h2>
+
+        {description && (
           <p
             style={{
-              margin: "9px 0 0",
-              color: "#8a641f",
-              fontSize: "13px",
-              fontWeight: 800,
+              margin: "7px 0 0",
+              color: "#6b7280",
+              lineHeight: 1.5,
             }}
           >
-            {item.trial_days} dias de teste
+            {description}
           </p>
         )}
+      </div>
 
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: "100%",
-          minHeight: "44px",
-          marginTop: "14px",
-          borderRadius: "11px",
-          border: ativoNoPerfil
-            ? "1px solid #bbf7d0"
-            : "1px solid #d1d5db",
-          background: ativoNoPerfil
-            ? "#f0fdf4"
-            : "#ffffff",
-          color: ativoNoPerfil
-            ? "#166534"
-            : "#374151",
-          fontWeight: 850,
-          cursor: "pointer",
-        }}
-      >
-        {ativoNoPerfil
-          ? "Ver detalhes"
-          : aberto
-            ? "Fechar detalhes"
-            : "Conhecer módulo"}
-      </button>
-
-      {!ativoNoPerfil && (
-        <button
-          type="button"
-          disabled={processing}
-          onClick={onRequest}
+      {aside && (
+        <span
           style={{
-            width: "100%",
-            minHeight: "44px",
-            marginTop: "9px",
-            borderRadius: "11px",
-            border: "none",
-            background: processing
-              ? "#9ca3af"
-              : "#111827",
-            color: "#ffffff",
-            fontWeight: 850,
-            cursor: processing
-              ? "not-allowed"
-              : "pointer",
+            flex: "0 0 auto",
+            padding: "7px 10px",
+            borderRadius: 999,
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            color: "#475569",
+            fontSize: 12,
+            fontWeight: 900,
           }}
         >
-          {processing
-            ? "Processando..."
-            : testeDisponivel
-              ? "Ativar teste grátis"
-              : pedidoPendente
-                ? "Continuar pagamento"
-                : "Comprar agora"}
-        </button>
+          {aside}
+        </span>
       )}
-
-      {pedidoPendente && (
-        <div
-          style={{
-            marginTop: "9px",
-            padding: "10px 11px",
-            borderRadius: "10px",
-            background: "#fffaf0",
-            border: "1px solid #e6d7b8",
-            color: "#8a641f",
-            fontSize: "13px",
-            fontWeight: 800,
-            textAlign: "center",
-          }}
-        >
-          Pagamento ainda não concluído
-        </div>
-      )}
-
-      {aberto && (
-        <div
-          style={{
-            marginTop: "11px",
-            padding: "12px",
-            borderRadius: "11px",
-            background: "#fafafa",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              color: "#374151",
-              lineHeight: 1.5,
-              fontSize: "13px",
-            }}
-          >
-            {item.benefit ||
-              "Este módulo adiciona novos recursos à sua página TAP PRO."}
-          </p>
-
-          {!ativoNoPerfil && (
-              <p
-                style={{
-                  margin: "9px 0 0",
-                  color: "#6b7280",
-                  fontSize: "12px",
-                  lineHeight: 1.45,
-                }}
-              >
-                Testes são liberados imediatamente. Compras são ativadas automaticamente após a confirmação do pagamento.
-              </p>
-            )}
-        </div>
-      )}
-    </article>
+    </div>
   );
 }
 
 export default function ProProfissionalPainel() {
-  const { accessCode } =
-    useParams();
-
+  const { accessCode } = useParams();
   const navigate = useNavigate();
+  const cleanCode = limparCodigoPro(accessCode);
 
-  const cleanCode =
-    limparCodigoPro(accessCode);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [catalogoModulos, setCatalogoModulos] =
-    useState([]);
-
-  const [catalogoLoading, setCatalogoLoading] =
-    useState(true);
-
-  const [moduloAberto, setModuloAberto] =
-    useState("");
-
-  const [moduloProcessando, setModuloProcessando] =
-    useState("");
-
-  const [mensagemModulo, setMensagemModulo] =
-    useState("");
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState("");
-
-  const [data, setData] =
-    useState(null);
-
-  const [form, setForm] =
-    useState(initial);
-
-  const [top3, setTop3] =
-    useState([]);
-
-  const [photoFile, setPhotoFile] =
-    useState(null);
-
-  const [logoFile, setLogoFile] =
-    useState(null);
-
-  const [photoPreview, setPhotoPreview] =
-    useState("");
-
-  const [logoPreview, setLogoPreview] =
-    useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [data, setData] = useState(null);
+  const [form, setForm] = useState(initial);
+  const [top3, setTop3] = useState([]);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [logoPreview, setLogoPreview] = useState("");
 
   useEffect(() => {
     async function load() {
       if (
         !codigoProValido(cleanCode) ||
-        obterAcessoAdminPro() !==
-          cleanCode
+        obterAcessoAdminPro() !== cleanCode
       ) {
-        setError(
-          "Acesso administrativo não autorizado."
-        );
+        setError("Acesso administrativo não autorizado.");
         setLoading(false);
         return;
       }
 
-      const { data, error } =
-        await getProfessionalDashboardNovoPro(
-          cleanCode
-        );
+      const result = await getProfessionalDashboardNovoPro(cleanCode);
 
-      if (
-        error ||
-        !data?.found
-      ) {
-        console.error(error);
-        setError(
-          "Não foi possível carregar o painel profissional."
-        );
+      if (result.error || !result.data?.found) {
+        console.error(result.error);
+        setError("Não foi possível carregar o painel profissional.");
         setLoading(false);
         return;
       }
 
-      setData(data);
+      const loadedData = result.data;
+      const loadedGoal = GOALS[loadedData.primary_goal]
+        ? loadedData.primary_goal
+        : "auto";
 
+      setData(loadedData);
       setForm({
         ...initial,
-        ...data,
-        primary_goal:
-          data.primary_goal || "auto",
+        ...loadedData,
+        primary_goal: loadedGoal,
       });
 
       setTop3(
-        (data.top3 || [])
-          .sort(
-            (a,b) =>
-              a.featured_position -
-              b.featured_position
-          )
-          .map(
-            (item) =>
-              item.module_code
-          )
+        (loadedData.top3 || [])
+          .sort((a, b) => a.featured_position - b.featured_position)
+          .map((item) => item.module_code)
+          .filter((code) => ALLOWED_MODULE_CODES.has(code))
+          .slice(0, 3)
       );
 
-      setPhotoPreview(
-        data.photo_url || ""
-      );
-
-      setLogoPreview(
-        data.logo_url || ""
-      );
-
-      const catalogo =
-        await listarCatalogoModulosClientePro(
-          cleanCode
-        );
-
-      if (catalogo.error) {
-        console.error(
-          "Erro ao carregar catálogo:",
-          catalogo.error
-        );
-      } else {
-        setCatalogoModulos(
-          catalogo.data || []
-        );
-      }
-
-      setCatalogoLoading(false);
+      setPhotoPreview(loadedData.photo_url || "");
+      setLogoPreview(loadedData.logo_url || "");
       setLoading(false);
     }
 
     load();
   }, [cleanCode]);
 
-  const strategy =
-    GOALS[form.primary_goal] ||
-    GOALS.auto;
+  const strategy = GOALS[form.primary_goal] || GOALS.auto;
 
   const topNames = useMemo(
     () =>
       top3.map(
-        (code) =>
-          MODULES.find(
-            (item) => item[0] === code
-          )?.[1] || code
+        (code) => MODULES.find((item) => item[0] === code)?.[1] || code
       ),
     [top3]
   );
 
   function change(event) {
-    const { name, value } =
-      event.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function toggle(code) {
+    setError("");
+
     setTop3((prev) => {
       if (prev.includes(code)) {
-        return prev.filter(
-          (item) => item !== code
-        );
+        return prev.filter((item) => item !== code);
       }
 
       if (prev.length >= 3) {
-        setError(
-          "Você já escolheu 3 destaques."
-        );
+        setError("Você já escolheu 3 destaques.");
         return prev;
       }
 
@@ -640,13 +287,10 @@ export default function ProProfissionalPainel() {
   }
 
   function file(event, type) {
-    const selected =
-      event.target.files?.[0];
-
+    const selected = event.target.files?.[0];
     if (!selected) return;
 
-    const preview =
-      URL.createObjectURL(selected);
+    const preview = URL.createObjectURL(selected);
 
     if (type === "photo") {
       setPhotoFile(selected);
@@ -658,28 +302,17 @@ export default function ProProfissionalPainel() {
   }
 
   async function save(event) {
-    event.preventDefault();
+    event?.preventDefault();
 
-    if (
-      !form.professional_name.trim() ||
-      !form.professional_title.trim()
-    ) {
-      setError(
-        "Preencha nome e título profissional."
-      );
+    if (!form.professional_name.trim() || !form.professional_title.trim()) {
+      setError("Preencha nome e título profissional.");
       return;
     }
 
-    const whatsapp =
-      digits(form.whatsapp);
+    const whatsapp = digits(form.whatsapp);
 
-    if (
-      whatsapp.length < 10 ||
-      whatsapp.length > 13
-    ) {
-      setError(
-        "Informe um WhatsApp válido."
-      );
+    if (whatsapp.length < 10 || whatsapp.length > 13) {
+      setError("Informe um WhatsApp válido.");
       return;
     }
 
@@ -687,24 +320,14 @@ export default function ProProfissionalPainel() {
     setError("");
     setSuccess("");
 
-    let photoUrl =
-      form.photo_url;
-
-    let logoUrl =
-      form.logo_url;
+    let photoUrl = form.photo_url;
+    let logoUrl = form.logo_url;
 
     if (photoFile) {
-      const result =
-        await uploadImagemPro(
-          cleanCode,
-          photoFile,
-          "foto"
-        );
+      const result = await uploadImagemPro(cleanCode, photoFile, "foto");
 
       if (result.error) {
-        setError(
-          "Não foi possível salvar a foto."
-        );
+        setError("Não foi possível salvar a foto.");
         setSaving(false);
         return;
       }
@@ -713,17 +336,10 @@ export default function ProProfissionalPainel() {
     }
 
     if (logoFile) {
-      const result =
-        await uploadImagemPro(
-          cleanCode,
-          logoFile,
-          "logo"
-        );
+      const result = await uploadImagemPro(cleanCode, logoFile, "logo");
 
       if (result.error) {
-        setError(
-          "Não foi possível salvar o logo."
-        );
+        setError("Não foi possível salvar o logo.");
         setSaving(false);
         return;
       }
@@ -739,19 +355,15 @@ export default function ProProfissionalPainel() {
       phone: digits(form.phone),
     };
 
-    const { data, error } =
-      await atualizarProfissionalNovoPro(
-        cleanCode,
-        payload,
-        top3
-      );
+    const result = await atualizarProfissionalNovoPro(
+      cleanCode,
+      payload,
+      top3
+    );
 
-    if (error) {
-      console.error(error);
-      setError(
-        error.message ||
-          "Não foi possível salvar."
-      );
+    if (result.error) {
+      console.error(result.error);
+      setError(result.error.message || "Não foi possível salvar.");
       setSaving(false);
       return;
     }
@@ -761,211 +373,144 @@ export default function ProProfissionalPainel() {
     setLogoPreview(logoUrl);
     setPhotoFile(null);
     setLogoFile(null);
-    setSuccess(
-      "Alterações salvas com sucesso."
-    );
+    setSuccess("Alterações salvas com sucesso.");
     setSaving(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-
-  async function solicitarModulo(
-    item
-  ) {
-    setModuloProcessando(
-      item.module_code
-    );
-
-    setMensagemModulo("");
-
-    const testeDisponivel =
-      Number(
-        item.trial_days || 0
-      ) > 0 &&
-      !item.trial_used_at;
-
-    if (testeDisponivel) {
-      const { data, error } =
-        await solicitarModuloPerfilPro(
-          cleanCode,
-          item.module_code
-        );
-
-      setModuloProcessando("");
-
-      if (error) {
-        console.error(error);
-
-        const message =
-          error.message ||
-          "Não foi possível ativar o teste.";
-
-        setError(message);
-
-        return;
-      }
-
-      setMensagemModulo(
-        data?.message ||
-        "Teste grátis ativado."
-      );
-    } else {
-      const { data, error } =
-        await criarCheckoutModuloPro(
-          cleanCode,
-          item.module_code
-        );
-
-      setModuloProcessando("");
-
-      if (error) {
-        console.error(error);
-
-        const message =
-          error.message ||
-          "Não foi possível iniciar o pagamento.";
-
-        setError(message);
-
-        return;
-      }
-
-      if (!data?.checkoutUrl) {
-        const message =
-          data?.message ||
-          "O checkout não retornou uma URL válida.";
-
-        setError(message);
-
-        return;
-      }
-
-      window.location.href =
-        data.checkoutUrl;
-
-      return;
-    }
-
-    const catalogo =
-      await listarCatalogoModulosClientePro(
-        cleanCode
-      );
-
-    if (!catalogo.error) {
-      setCatalogoModulos(
-        catalogo.data || []
-      );
-    }
-  }
-
-  if (loading) {
-    return (
-      <Screen text="Carregando painel..." />
-    );
-  }
-
-  if (error && !data) {
-    return <Screen text={error} />;
-  }
+  if (loading) return <Screen text="Carregando painel..." />;
+  if (error && !data) return <Screen text={error} />;
 
   return (
     <main
       style={{
-        minHeight:"100vh",
-        padding:"24px 16px 48px",
-        background:"#f5f5f4",
+        minHeight: "100vh",
+        padding: "22px 14px 118px",
+        background: "#f3f1ec",
         fontFamily:
           'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
-        color:"#111827",
+        color: "#111827",
       }}
     >
-      <style>
-        {`
-          .pro-grid{
-            display:grid;
-            grid-template-columns:1fr 1fr;
-            gap:16px;
-          }
-          .pro-modules{
-            display:grid;
-            grid-template-columns:1fr 1fr;
-            gap:12px;
-          }
-          @media(max-width:680px){
-            .pro-grid,.pro-modules{
-              grid-template-columns:1fr;
-            }
-          }
-        `}
-      </style>
+      <style>{`
+        .pro-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .pro-modules{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .pro-goals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+        .pro-topbar{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+        @media(max-width:760px){
+          .pro-grid,.pro-modules,.pro-goals{grid-template-columns:1fr}
+          .pro-topbar{grid-template-columns:1fr}
+          form{padding-left:16px!important;padding-right:16px!important}
+        }
+      `}</style>
 
-      <section
-        style={{
-          maxWidth:820,
-          margin:"0 auto",
-        }}
-      >
+      <section style={{ maxWidth: 940, margin: "0 auto" }}>
         <header
           style={{
-            padding:27,
-            borderRadius:22,
-            background:
-              "linear-gradient(135deg,#1c1917 0%,#6b5b3e 100%)",
-            color:"#ffffff",
+            padding: 24,
+            borderRadius: 24,
+            background: "#111827",
+            color: "#ffffff",
+            boxShadow: "0 18px 46px rgba(17,24,39,.18)",
           }}
         >
-          <p
-            style={{
-              margin:"0 0 7px",
-              opacity:.82,
-              fontWeight:750,
-            }}
-          >
-            Painel profissional
-          </p>
+          <div className="pro-topbar">
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 20,
+                  background: "#ffffff",
+                  display: "grid",
+                  placeItems: "center",
+                  overflow: "hidden",
+                  flexShrink: 0,
+                }}
+              >
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Foto profissional"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <UserRound size={30} color="#111827" />
+                )}
+              </div>
 
-          <h1
-            style={{
-              margin:0,
-              fontSize:30,
-            }}
-          >
-            {form.professional_name}
-          </h1>
+              <div style={{ minWidth: 0 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    padding: "5px 9px",
+                    borderRadius: 999,
+                    background: "rgba(214,181,108,.16)",
+                    color: "#efd18c",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    letterSpacing: ".6px",
+                  }}
+                >
+                  Perfil profissional
+                </span>
 
-          <p
-            style={{
-              margin:"10px 0 0",
-              opacity:.94,
-            }}
-          >
-            Atualize seu perfil e escolha o resultado que deseja gerar.
-          </p>
+                <h1
+                  style={{
+                    margin: "10px 0 0",
+                    fontSize: "clamp(25px,5vw,34px)",
+                    lineHeight: 1.1,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {form.professional_name || "Seu perfil"}
+                </h1>
 
-          {photoPreview && (
-            <img
-              src={photoPreview}
-              alt="Foto profissional"
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "#cbd5e1",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Atualize seu perfil, escolha uma estratégia e publique.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate(`/pro/profissional/${data.piece_code}`)}
               style={{
-                width:96,
-                height:96,
-                objectFit:"cover",
-                borderRadius:"50%",
-                marginTop:16,
-                border:"3px solid rgba(255,255,255,.6)",
+                minHeight: 50,
+                padding: "0 18px",
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,.22)",
+                background: "#ffffff",
+                color: "#111827",
+                fontWeight: 900,
+                cursor: "pointer",
               }}
-            />
-          )}
+            >
+              Ver perfil público
+            </button>
+          </div>
         </header>
 
         {error && (
           <div
             style={{
-              marginTop:18,
-              padding:14,
-              borderRadius:13,
-              background:"#fee2e2",
-              color:"#991b1b",
-              fontWeight:750,
+              marginTop: 18,
+              padding: 16,
+              borderRadius: 16,
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #fecaca",
             }}
           >
             {error}
@@ -975,284 +520,427 @@ export default function ProProfissionalPainel() {
         {success && (
           <div
             style={{
-              marginTop:18,
-              padding:14,
-              borderRadius:13,
-              background:"#dcfce7",
-              color:"#166534",
-              fontWeight:750,
+              marginTop: 18,
+              padding: 16,
+              borderRadius: 16,
+              background: "#dcfce7",
+              color: "#166534",
+              border: "1px solid #bbf7d0",
             }}
           >
             {success}
           </div>
         )}
 
-        <form onSubmit={save}>
-          <section style={card}>
-            <h2>Identidade profissional</h2>
+        <form
+          onSubmit={save}
+          style={{
+            marginTop: 18,
+            padding: "0 22px 4px",
+            borderRadius: 24,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            boxShadow: "0 12px 30px rgba(0,0,0,.05)",
+          }}
+        >
+          <section style={section}>
+            <SectionTitle
+              kicker="1. Identidade"
+              title="Como você aparece"
+              description="Use uma foto clara e uma apresentação fácil de reconhecer."
+            />
 
-            <div className="pro-grid">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "140px 1fr",
+                gap: 20,
+                alignItems: "start",
+              }}
+            >
               <div>
-                <label style={{fontWeight:800}}>
-                  Foto profissional
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    file(e,"photo")
-                  }
+                <div
                   style={{
-                    ...input,
-                    marginTop:7,
+                    width: "100%",
+                    aspectRatio: "1 / 1",
+                    borderRadius: 20,
+                    background: "#f8fafc",
+                    border: "1px dashed #cbd5e1",
+                    display: "grid",
+                    placeItems: "center",
+                    overflow: "hidden",
                   }}
-                />
+                >
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Foto profissional"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <UserRound size={42} color="#94a3b8" />
+                  )}
+                </div>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                    marginTop: 10,
+                    padding: "11px 12px",
+                    borderRadius: 12,
+                    background: "#fffaf0",
+                    border: "1px solid #e6d7b8",
+                    color: "#8a641f",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  <ImagePlus size={17} />
+                  Trocar foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => file(event, "photo")}
+                    style={{ display: "none" }}
+                  />
+                </label>
               </div>
 
               <div>
-                <label style={{fontWeight:800}}>
-                  Logo da empresa
+                <div className="pro-grid">
+                  <Field
+                    label="Nome profissional"
+                    name="professional_name"
+                    value={form.professional_name}
+                    onChange={change}
+                  />
+
+                  <Field
+                    label="Título ou especialidade"
+                    name="professional_title"
+                    value={form.professional_title}
+                    onChange={change}
+                  />
+                </div>
+
+                <label
+                  style={{
+                    display: "block",
+                    marginTop: 16,
+                    fontWeight: 800,
+                  }}
+                >
+                  Descrição curta
                 </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    file(e,"logo")
-                  }
+
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={change}
+                  placeholder="Explique em uma frase como você ajuda seus clientes."
                   style={{
                     ...input,
-                    marginTop:7,
+                    minHeight: 86,
+                    marginTop: 7,
+                    resize: "vertical",
                   }}
                 />
+
+                <div className="pro-grid" style={{ marginTop: 16 }}>
+                  <Field
+                    label="WhatsApp"
+                    name="whatsapp"
+                    value={form.whatsapp}
+                    onChange={change}
+                  />
+
+                  <Field
+                    label="Área de atendimento"
+                    name="area_service"
+                    value={form.area_service}
+                    onChange={change}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <details style={{ marginTop: 18 }}>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontWeight: 850,
+                  color: "#475569",
+                }}
+              >
+                Logo opcional
+              </summary>
+
+              <div
+                style={{
+                  marginTop: 13,
+                  padding: 15,
+                  borderRadius: 15,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "10px 12px",
+                    borderRadius: 11,
+                    border: "1px solid #d1d5db",
+                    background: "#ffffff",
+                    fontWeight: 850,
+                    cursor: "pointer",
+                  }}
+                >
+                  <ImagePlus size={17} />
+                  Selecionar logo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => file(event, "logo")}
+                    style={{ display: "none" }}
+                  />
+                </label>
+
                 {logoPreview && (
                   <img
                     src={logoPreview}
                     alt="Logo"
                     style={{
-                      width:110,
-                      height:80,
-                      objectFit:"contain",
-                      marginTop:10,
+                      display: "block",
+                      width: 110,
+                      height: 72,
+                      objectFit: "contain",
+                      marginTop: 12,
                     }}
                   />
                 )}
               </div>
-            </div>
+            </details>
+          </section>
 
-            <div className="pro-grid">
-              <Field
-                label="Nome profissional"
-                name="professional_name"
-                value={form.professional_name}
-                onChange={change}
-              />
-              <Field
-                label="Título ou especialidade"
-                name="professional_title"
-                value={form.professional_title}
-                onChange={change}
-              />
-            </div>
-
-            <Field
-              label="Empresa"
-              name="company_name"
-              value={form.company_name}
-              onChange={change}
+          <section style={section}>
+            <SectionTitle
+              kicker="2. Objetivo"
+              title="O que este perfil deve gerar?"
+              description="A opção escolhida define a chamada principal da página."
             />
 
-            <div style={{marginBottom:16}}>
-              <label style={{fontWeight:800}}>
-                Descrição
-              </label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={change}
-                style={{
-                  ...input,
-                  minHeight:100,
-                  marginTop:7,
-                }}
-              />
-            </div>
+            <div className="pro-goals">
+              {Object.entries(GOALS).map(([code, item]) => {
+                const selected = form.primary_goal === code;
 
-            <div className="pro-grid">
-              <Field
-                label="WhatsApp"
-                name="whatsapp"
-                value={form.whatsapp}
-                onChange={change}
-              />
-              <Field
-                label="Área de atendimento"
-                name="area_service"
-                value={form.area_service}
-                onChange={change}
-              />
-            </div>
-          </section>
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        primary_goal: code,
+                      }))
+                    }
+                    style={{
+                      minHeight: 74,
+                      padding: 12,
+                      borderRadius: 13,
+                      border: selected
+                        ? "2px solid #b8892f"
+                        : "1px solid #d1d5db",
+                      background: selected ? "#fffaf0" : "#ffffff",
+                      color: "#111827",
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <strong style={{ display: "block" }}>{item.title}</strong>
 
-          <section style={card}>
-            <h2>Destaques do perfil</h2>
-            <p style={{color:"#6b7280"}}>
-              Escolhidos: {top3.length}/3 · Restam {3-top3.length}
-            </p>
-
-            <div className="pro-modules">
-              {MODULES.map(
-                ([code,name]) => {
-                  const selected =
-                    top3.includes(code);
-
-                  return (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() =>
-                        toggle(code)
-                      }
+                    <small
                       style={{
-                        padding:15,
-                        borderRadius:14,
-                        border:selected
-                          ? "2px solid #b8892f"
-                          : "1px solid #d1d5db",
-                        background:selected
-                          ? "#fffaf0"
-                          : "#ffffff",
-                        color:"#111827",
-                        textAlign:"left",
-                        fontWeight:800,
-                        cursor:"pointer",
+                        display: "block",
+                        marginTop: 6,
+                        color: selected ? "#8a641f" : "#6b7280",
+                        lineHeight: 1.35,
                       }}
                     >
-                      {name}
-                      {selected && (
-                        <span
-                          style={{
-                            float:"right",
-                            width:28,
-                            height:28,
-                            borderRadius:"50%",
-                            display:"inline-flex",
-                            alignItems:"center",
-                            justifyContent:"center",
-                            background:"#b8892f",
-                            color:"#ffffff",
-                          }}
-                        >
-                          {top3.indexOf(code)+1}
-                        </span>
-                      )}
-                    </button>
-                  );
-                }
-              )}
+                      {item.result}
+                    </small>
+                  </button>
+                );
+              })}
             </div>
-
-            {topNames.length > 0 && (
-              <ol>
-                {topNames.map(
-                  (name) => (
-                    <li key={name}>
-                      {name}
-                    </li>
-                  )
-                )}
-              </ol>
-            )}
-          </section>
-
-          <section style={card}>
-            <h2>
-              O que você quer gerar com este perfil?
-            </h2>
-
-            <select
-              name="primary_goal"
-              value={form.primary_goal}
-              onChange={change}
-              style={input}
-            >
-              <option value="auto">
-                Automático
-              </option>
-              <option value="whatsapp">
-                Mais contatos
-              </option>
-              <option value="scheduling">
-                Mais agendamentos
-              </option>
-              <option value="instagram">
-                Mais seguidores
-              </option>
-              <option value="portfolio">
-                Mais visitas ao portfólio
-              </option>
-              <option value="share">
-                Mais indicações
-              </option>
-              <option value="company_page">
-                Apresentar minha empresa
-              </option>
-            </select>
 
             <div
               style={{
-                marginTop:16,
-                padding:16,
-                borderRadius:14,
-                background:"#fafafa",
-                border:"1px solid #e5e7eb",
+                marginTop: 14,
+                padding: 14,
+                borderRadius: 13,
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                color: "#475569",
+                lineHeight: 1.5,
               }}
             >
-              <p
-                style={{
-                  margin:"0 0 5px",
-                  color:"#b8892f",
-                  fontWeight:900,
-                  fontSize:12,
-                  textTransform:"uppercase",
-                }}
-              >
-                Sua estratégia atual
-              </p>
               <strong>{strategy.title}</strong>
-              <p
-                style={{
-                  color:"#4b5563",
-                  lineHeight:1.5,
-                }}
-              >
-                {strategy.result}
-              </p>
-              <p
-                style={{
-                  color:"#6b7280",
-                  fontSize:13,
-                }}
-              >
-                <strong>Dica:</strong>{" "}
-                {strategy.tip}
-              </p>
+              <span> · {strategy.tip}</span>
             </div>
           </section>
 
-          <section style={card}>
-            <h2>Links e contatos</h2>
+          <section style={section}>
+            <SectionTitle
+              kicker="3. Destaques"
+              title="Escolha os principais acessos"
+              description="Marque até 3 opções para aparecerem com mais destaque."
+              aside={`${top3.length}/3 destaques`}
+            />
+
+            <div className="pro-modules">
+              {MODULES.map(([code, name]) => {
+                const selected = top3.includes(code);
+                const position = top3.indexOf(code) + 1;
+
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => toggle(code)}
+                    style={{
+                      minHeight: 54,
+                      padding: "11px 13px",
+                      borderRadius: 13,
+                      border: selected
+                        ? "2px solid #b8892f"
+                        : "1px solid #d1d5db",
+                      background: selected ? "#fffaf0" : "#ffffff",
+                      color: "#111827",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      textAlign: "left",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span>{name}</span>
+
+                    {selected ? (
+                      <span
+                        style={{
+                          width: 29,
+                          height: 29,
+                          borderRadius: "50%",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#b8892f",
+                          color: "#ffffff",
+                          fontSize: 12,
+                          fontWeight: 900,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {position}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          width: 29,
+                          height: 29,
+                          borderRadius: "50%",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#f3f4f6",
+                          color: "#9ca3af",
+                          flexShrink: 0,
+                        }}
+                      >
+                        +
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {topNames.length > 0 && (
+              <div
+                style={{
+                  marginTop: 15,
+                  padding: 14,
+                  borderRadius: 14,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <strong
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontSize: 13,
+                  }}
+                >
+                  Ordem na página
+                </strong>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                  }}
+                >
+                  {topNames.map((name, index) => (
+                    <span
+                      key={`${name}-${index}`}
+                      style={{
+                        padding: "7px 10px",
+                        borderRadius: 999,
+                        background: "#ffffff",
+                        border: "1px solid #d1d5db",
+                        color: "#475569",
+                        fontSize: 12,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {index + 1}. {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section style={section}>
+            <SectionTitle
+              kicker="4. Contatos"
+              title="Links e canais profissionais"
+              description="Preencha apenas o que você realmente usa."
+            />
+
             <div className="pro-grid">
               {[
-                ["phone","Telefone"],
-                ["email","E-mail"],
-                ["instagram","Instagram"],
-                ["linkedin","LinkedIn"],
-                ["website","Site"],
-                ["portfolio_url","Portfólio"],
-                ["scheduling_url","Agendamento"],
-                ["company_page_url","Página da empresa"],
-                ["maps_url","Google Maps"],
-              ].map(([name,label]) => (
+                ["phone", "Telefone"],
+                ["email", "E-mail"],
+                ["instagram", "Instagram"],
+                ["linkedin", "LinkedIn"],
+                ["website", "Site"],
+                ["portfolio_url", "Portfólio"],
+                ["maps_url", "Google Maps"],
+              ].map(([name, label]) => (
                 <Field
                   key={name}
                   label={label}
@@ -1264,222 +952,118 @@ export default function ProProfissionalPainel() {
             </div>
           </section>
 
-          <section style={card}>
-            <h2>Serviços e especialidades</h2>
+          <section style={section}>
+            <SectionTitle
+              kicker="5. Serviços"
+              title="Serviços principais"
+              description="Mostre de forma simples o que você oferece."
+            />
+
             <div className="pro-grid">
-              {[1,2,3,4].map((n) => (
+              {[1, 2].map((number) => (
                 <Field
-                  key={`service_${n}`}
-                  label={`Serviço ${n}`}
-                  name={`service_${n}`}
-                  value={form[`service_${n}`] || ""}
+                  key={`service_${number}`}
+                  label={`Serviço ${number}`}
+                  name={`service_${number}`}
+                  value={form[`service_${number}`] || ""}
                   onChange={change}
                 />
               ))}
-              {[1,2,3,4,5].map((n) => (
-                <Field
-                  key={`specialty_${n}`}
-                  label={`Especialidade ${n}`}
-                  name={`specialty_${n}`}
-                  value={form[`specialty_${n}`] || ""}
-                  onChange={change}
-                />
-              ))}
-            </div>
-          </section>
-
-
-          <section style={card}>
-            <p
-              style={{
-                margin: "0 0 5px",
-                color: "#b8892f",
-                fontSize: 12,
-                fontWeight: 900,
-                textTransform: "uppercase",
-                letterSpacing: "0.8px",
-              }}
-            >
-              Novas possibilidades
-            </p>
-
-            <h2>
-              Melhore seu perfil
-            </h2>
-
-            <p
-              style={{
-                color: "#6b7280",
-                lineHeight: 1.5,
-              }}
-            >
-              Conheça recursos extras para apresentar melhor seu trabalho, gerar confiança e conquistar novos contatos.
-            </p>
-
-            {mensagemModulo && (
-              <div
-                style={{
-                  marginBottom: "12px",
-                  padding: "12px 13px",
-                  borderRadius: "11px",
-                  background: "#dcfce7",
-                  border: "1px solid #bbf7d0",
-                  color: "#166534",
-                  fontWeight: 800,
-                  fontSize: "13px",
-                }}
-              >
-                {mensagemModulo}
-              </div>
-            )}
-
-            {catalogoLoading ? (
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 13,
-                  background: "#fafafa",
-                  color: "#6b7280",
-                }}
-              >
-                Carregando módulos...
-              </div>
-            ) : catalogoModulos.length === 0 ? (
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 13,
-                  background: "#fafafa",
-                  color: "#6b7280",
-                }}
-              >
-                Nenhum módulo extra disponível agora.
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(230px, 1fr))",
-                  gap: 12,
-                }}
-              >
-                {catalogoModulos.map(
-                  (item) => (
-                    <ModuloCatalogoCard
-                      key={
-                        item.module_code
-                      }
-                      item={item}
-                      aberto={
-                        moduloAberto ===
-                        item.module_code
-                      }
-                      onToggle={() =>
-                        setModuloAberto(
-                          moduloAberto ===
-                            item.module_code
-                            ? ""
-                            : item.module_code
-                        )
-                      }
-                      onRequest={() =>
-                        solicitarModulo(
-                          item
-                        )
-                      }
-                      processing={
-                        moduloProcessando ===
-                        item.module_code
-                      }
-                    />
-                  )
-                )}
-              </div>
-            )}
-          </section>
-
-          <section
-            style={{
-              ...card,
-              position:"sticky",
-              bottom:10,
-              zIndex:10,
-            }}
-          >
-            <div
-              style={{
-                display:"grid",
-                gridTemplateColumns:"1fr 1fr",
-                gap:12,
-              }}
-            >
-              <button
-                type="submit"
-                disabled={saving}
-                style={{
-                  minHeight:54,
-                  border:"none",
-                  borderRadius:14,
-                  background:saving
-                    ? "#9ca3af"
-                    : "#111827",
-                  color:"#ffffff",
-                  fontWeight:850,
-                  cursor:saving
-                    ? "not-allowed"
-                    : "pointer",
-                }}
-              >
-                {saving
-                  ? "Salvando..."
-                  : "Salvar alterações"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    `/pro/profissional/${data.piece_code}`
-                  )
-                }
-                style={{
-                  minHeight:54,
-                  borderRadius:14,
-                  border:"1px solid #b8892f",
-                  background:"#fffaf0",
-                  color:"#8a641f",
-                  fontWeight:850,
-                  cursor:"pointer",
-                }}
-              >
-                Ver perfil público
-              </button>
             </div>
           </section>
         </form>
       </section>
+
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 40,
+          padding: "10px 14px",
+          background: "rgba(255,255,255,.96)",
+          borderTop: "1px solid #e5e7eb",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 940,
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "1fr auto auto",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <strong style={{ display: "block", fontSize: 13 }}>
+              Seu perfil profissional
+            </strong>
+
+            <small style={{ color: "#6b7280" }}>
+              Salve as alterações antes de sair.
+            </small>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/pro/profissional/${data.piece_code}`)}
+            style={{
+              minHeight: 48,
+              padding: "0 16px",
+              borderRadius: 13,
+              border: "1px solid #b8892f",
+              background: "#fffaf0",
+              color: "#8a641f",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Ver perfil público
+          </button>
+
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            style={{
+              minHeight: 48,
+              padding: "0 18px",
+              border: 0,
+              borderRadius: 13,
+              background: saving ? "#9ca3af" : "#111827",
+              color: "#ffffff",
+              fontWeight: 900,
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
+          >
+            {saving ? "Salvando..." : "Salvar alterações"}
+          </button>
+        </div>
+      </div>
     </main>
   );
 }
 
-function Screen({text}) {
+function Screen({ text }) {
   return (
     <main
       style={{
-        minHeight:"100vh",
-        display:"grid",
-        placeItems:"center",
-        background:"#f5f5f4",
-        padding:24,
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        background: "#f5f5f4",
+        padding: 24,
       }}
     >
       <section
         style={{
-          background:"#ffffff",
-          padding:28,
-          borderRadius:20,
-          textAlign:"center",
+          background: "#ffffff",
+          padding: 28,
+          borderRadius: 20,
+          textAlign: "center",
         }}
       >
         <h1>TAP PRO</h1>

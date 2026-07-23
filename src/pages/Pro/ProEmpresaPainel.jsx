@@ -81,9 +81,9 @@ function StylePreview({ type, selected }) {
 
   const shell = {
     width: "100%",
-    height: 148,
-    padding: 10,
-    borderRadius: 15,
+    height: 84,
+    padding: 6,
+    borderRadius: 11,
     background: p.frame,
     border: `1px solid ${selected ? p.accent : p.line}`,
     boxSizing: "border-box",
@@ -93,13 +93,13 @@ function StylePreview({ type, selected }) {
   if (type === "classic") {
     return (
       <div style={shell}>
-        <div style={{ height: 47, borderRadius: 11, background: p.hero }} />
-        <div style={{ width: 40, height: 40, margin: "-18px auto 8px", borderRadius: 12, background: "#ffffff", border: `1px solid ${p.line}` }} />
-        <div style={{ width: "56%", height: 7, margin: "0 auto 8px", borderRadius: 999, background: p.text, opacity: .9 }} />
-        <div style={{ width: "82%", height: 20, margin: "0 auto 7px", borderRadius: 8, background: p.accent, opacity: .9 }} />
-        <div style={{ display: "grid", gap: 5 }}>
-          <div style={{ height: 12, borderRadius: 6, border: `1px solid ${p.line}`, background: "#ffffff" }} />
-          <div style={{ height: 12, borderRadius: 6, border: `1px solid ${p.line}`, background: "#ffffff" }} />
+        <div style={{ height: 25, borderRadius: 7, background: p.hero }} />
+        <div style={{ width: 22, height: 22, margin: "-9px auto 4px", borderRadius: 7, background: "#ffffff", border: `1px solid ${p.line}` }} />
+        <div style={{ width: "50%", height: 4, margin: "0 auto 4px", borderRadius: 999, background: p.text, opacity: .9 }} />
+        <div style={{ width: "78%", height: 11, margin: "0 auto 4px", borderRadius: 5, background: p.accent, opacity: .9 }} />
+        <div style={{ display: "grid", gap: 3 }}>
+          <div style={{ height: 6, borderRadius: 4, border: `1px solid ${p.line}`, background: "#ffffff" }} />
+          <div style={{ height: 6, borderRadius: 4, border: `1px solid ${p.line}`, background: "#ffffff" }} />
         </div>
       </div>
     );
@@ -108,14 +108,14 @@ function StylePreview({ type, selected }) {
   if (type === "futuristic") {
     return (
       <div style={shell}>
-        <div style={{ height: 52, borderRadius: 11, background: p.hero, boxShadow: "0 0 20px rgba(139,92,246,.25)" }} />
-        <div style={{ display: "grid", gridTemplateColumns: "1.25fr .75fr", gap: 6, marginTop: 7 }}>
-          <div style={{ height: 39, borderRadius: 9, background: "linear-gradient(135deg,#312e81,#6d28d9)" }} />
-          <div style={{ height: 39, borderRadius: 9, border: `1px solid ${p.line}`, background: "#18181f" }} />
+        <div style={{ height: 27, borderRadius: 7, background: p.hero, boxShadow: "0 0 14px rgba(139,92,246,.2)" }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1.25fr .75fr", gap: 4, marginTop: 5 }}>
+          <div style={{ height: 19, borderRadius: 6, background: "linear-gradient(135deg,#312e81,#6d28d9)" }} />
+          <div style={{ height: 19, borderRadius: 6, border: `1px solid ${p.line}`, background: "#18181f" }} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: ".8fr 1.2fr", gap: 6, marginTop: 6 }}>
-          <div style={{ height: 30, borderRadius: 9, border: `1px solid ${p.line}`, background: "#18181f" }} />
-          <div style={{ height: 30, borderRadius: 9, border: `1px solid ${p.line}`, background: "#18181f" }} />
+        <div style={{ display: "grid", gridTemplateColumns: ".8fr 1.2fr", gap: 4, marginTop: 4 }}>
+          <div style={{ height: 14, borderRadius: 6, border: `1px solid ${p.line}`, background: "#18181f" }} />
+          <div style={{ height: 14, borderRadius: 6, border: `1px solid ${p.line}`, background: "#18181f" }} />
         </div>
       </div>
     );
@@ -124,23 +124,23 @@ function StylePreview({ type, selected }) {
   if (type === "minimalist") {
     return (
       <div style={shell}>
-        <div style={{ width: 32, height: 32, borderRadius: 10, border: `1px solid ${p.line}` }} />
-        <div style={{ width: "58%", height: 8, marginTop: 10, borderRadius: 999, background: p.text }} />
-        <div style={{ width: "86%", height: 5, marginTop: 7, borderRadius: 999, background: p.line }} />
-        <div style={{ width: "72%", height: 5, marginTop: 5, borderRadius: 999, background: p.line }} />
-        <div style={{ height: 28, marginTop: 12, borderRadius: 0, borderTop: `1px solid ${p.line}`, borderBottom: `1px solid ${p.line}` }} />
-        <div style={{ height: 28, borderBottom: `1px solid ${p.line}` }} />
+        <div style={{ width: 18, height: 18, borderRadius: 6, border: `1px solid ${p.line}` }} />
+        <div style={{ width: "53%", height: 5, marginTop: 5, borderRadius: 999, background: p.text }} />
+        <div style={{ width: "82%", height: 3, marginTop: 4, borderRadius: 999, background: p.line }} />
+        <div style={{ width: "68%", height: 3, marginTop: 3, borderRadius: 999, background: p.line }} />
+        <div style={{ height: 13, marginTop: 6, borderRadius: 0, borderTop: `1px solid ${p.line}`, borderBottom: `1px solid ${p.line}` }} />
+        <div style={{ height: 13, borderBottom: `1px solid ${p.line}` }} />
       </div>
     );
   }
 
   return (
     <div style={shell}>
-      <div style={{ height: 49, borderRadius: 11, background: p.hero }} />
-      <div style={{ height: 31, marginTop: 7, borderRadius: 10, background: p.accent }} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 7 }}>
-        <div style={{ height: 33, borderRadius: 9, border: `1px solid ${p.line}`, background: "#f8fafc" }} />
-        <div style={{ height: 33, borderRadius: 9, border: `1px solid ${p.line}`, background: "#f8fafc" }} />
+      <div style={{ height: 25, borderRadius: 7, background: p.hero }} />
+      <div style={{ height: 15, marginTop: 4, borderRadius: 6, background: p.accent }} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 5 }}>
+        <div style={{ height: 16, borderRadius: 6, border: `1px solid ${p.line}`, background: "#f8fafc" }} />
+        <div style={{ height: 16, borderRadius: 6, border: `1px solid ${p.line}`, background: "#f8fafc" }} />
       </div>
     </div>
   );
@@ -515,7 +515,7 @@ export default function ProEmpresaPainel(){
     >
       <style>{`
         .tap-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .tap-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .tap-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
         .tap-goals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
         .tap-actions{columns:2 360px;column-gap:14px}
         .tap-action-card{break-inside:avoid;margin:0 0 14px;width:100%;display:inline-block;box-sizing:border-box}
@@ -971,7 +971,7 @@ export default function ProEmpresaPainel(){
             <SectionTitle
               kicker="5. Aparência"
               title="Escolha o estilo da página"
-              description="Os estilos já funcionam e poderão ser refinados em uma próxima etapa."
+              description="Escolha o visual que melhor representa sua empresa."
               icon={<Palette size={21}/>}
             />
 
@@ -985,8 +985,8 @@ export default function ProEmpresaPainel(){
                     type="button"
                     onClick={()=>setForm(current=>({...current,page_template:code}))}
                     style={{
-                      padding:12,
-                      borderRadius:16,
+                      padding:7,
+                      borderRadius:12,
                       textAlign:"left",
                       cursor:"pointer",
                       color:"#111827",
@@ -995,7 +995,7 @@ export default function ProEmpresaPainel(){
                     }}
                   >
                     <StylePreview type={code} selected={selected}/>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:12}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,marginTop:7}}>
                       <strong>{name}</strong>
                       {selected&&(
                         <span
@@ -1013,7 +1013,7 @@ export default function ProEmpresaPainel(){
                         </span>
                       )}
                     </div>
-                    <small style={{display:"block",marginTop:5,color:"#6b7280",lineHeight:1.4}}>
+                    <small style={{display:"block",marginTop:4,color:"#6b7280",lineHeight:1.35,fontSize:12.5}}>
                       {description}
                     </small>
                   </button>
