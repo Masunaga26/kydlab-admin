@@ -98,6 +98,12 @@ function App() {
 
         {/* CARTÃO-CONTROLE TAP PRO */}
         <Route
+          path="/pro/controle/:pieceCode"
+          element={<ProInicioCadastro />}
+        />
+
+        {/* COMPATIBILIDADE COM CARTÕES ANTIGOS */}
+        <Route
           path="/pro/controle/:pieceCode/:accessCode"
           element={<ProInicioCadastro />}
         />

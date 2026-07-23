@@ -413,14 +413,11 @@ export default function AdminPro() {
     piece,
     access
   ) {
-    if (
-      !piece?.code ||
-      !access?.access_code
-    ) {
+    if (!piece?.code) {
       return "";
     }
 
-    return `${BASE_URL}/pro/controle/${piece.code}/${access.access_code}`;
+    return `${BASE_URL}/pro/controle/${piece.code}`;
   }
 
   async function obterAcesso(
