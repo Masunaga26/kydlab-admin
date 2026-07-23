@@ -101,10 +101,26 @@ export default function ProInicioCadastro() {
 
     try {
       /*
-       * Quando existe código físico, inicia ou recupera
-       * a peça para confirmar qual é o código correto.
+       * 1. Primeiro procura um perfil já existente.
+       * Isso permite que clientes já cadastrados voltem
+       * ao painel normalmente.
        */
-      if (cleanPieceCode) {
+      let profileResult =
+        await getInicioPerfilPorAcessoPro(
+          cleanAccessCode
+        );
+
+      /*
+       * 2. Somente quando ainda não existe perfil,
+       * inicia a peça pela primeira vez.
+       */
+      if (
+        (
+          profileResult.error ||
+          !profileResult.data?.found
+        ) &&
+        cleanPieceCode
+      ) {
         const startResult =
           await iniciarPerfilDaPecaPro(
             cleanPieceCode
@@ -112,14 +128,14 @@ export default function ProInicioCadastro() {
 
         if (startResult.error) {
           console.error(
-            "Erro ao verificar a peça:",
+            "Erro ao iniciar a peça:",
             startResult.error
           );
 
           if (!silent) {
             setErro(
               startResult.error.message ||
-                "Não foi possível verificar este cartão-controle."
+                "Não foi possível iniciar este cartão-controle."
             );
           }
 
@@ -144,6 +160,11 @@ export default function ProInicioCadastro() {
 
           return false;
         }
+
+        profileResult =
+          await getInicioPerfilPorAcessoPro(
+            cleanAccessCode
+          );
       } else if (
         cleanLegacyAccessCode &&
         cleanLegacyAccessCode !==
@@ -157,11 +178,6 @@ export default function ProInicioCadastro() {
 
         return false;
       }
-
-      const profileResult =
-        await getInicioPerfilPorAcessoPro(
-          cleanAccessCode
-        );
 
       if (
         profileResult.error ||
