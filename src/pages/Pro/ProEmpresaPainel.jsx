@@ -162,6 +162,8 @@ export default function ProEmpresaPainel(){
   const [ativandoTeste,setAtivandoTeste]=useState(false);
   const [previewMode,setPreviewMode]=useState(false);
   const [savedSnapshot,setSavedSnapshot]=useState("");
+  const [buscandoCep,setBuscandoCep]=useState(false);
+  const [erroCep,setErroCep]=useState("");
 
   useEffect(()=>{(async()=>{
     if(!codigoAdminProValido(cleanCode)){
@@ -200,6 +202,58 @@ export default function ProEmpresaPainel(){
     }));
     setLoading(false);
   })()},[cleanCode]);
+
+  useEffect(()=>{
+    const cep=digits(form.address_postal_code);
+
+    if(cep.length!==8){
+      setErroCep("");
+      return;
+    }
+
+    const timer=window.setTimeout(async()=>{
+      setBuscandoCep(true);
+      setErroCep("");
+
+      try{
+        const response=await fetch(
+          `https://viacep.com.br/ws/${cep}/json/`
+        );
+
+        if(!response.ok){
+          throw new Error("Falha na consulta do CEP.");
+        }
+
+        const address=await response.json();
+
+        if(address?.erro){
+          setErroCep("CEP não encontrado.");
+          setBuscandoCep(false);
+          return;
+        }
+
+        setForm(current=>({
+          ...current,
+          address_postal_code:cep,
+          address_street:address.logradouro||current.address_street,
+          address_neighborhood:address.bairro||current.address_neighborhood,
+          address_city:address.localidade||current.address_city,
+          address_state:address.uf||current.address_state,
+        }));
+
+        setErroCep("");
+      }catch(error){
+        console.error("Erro ao consultar CEP:",error);
+        setErroCep(
+          "Não foi possível buscar o endereço. Preencha manualmente."
+        );
+      }finally{
+        setBuscandoCep(false);
+      }
+    },450);
+
+    return()=>window.clearTimeout(timer);
+  },[form.address_postal_code]);
 
   const strategyText=useMemo(()=>{
     const map={
@@ -1073,7 +1127,46 @@ export default function ProEmpresaPainel(){
             />
 
             <div className="tap-grid">
-              <Field label="CEP" name="address_postal_code" value={form.address_postal_code} onChange={change}/>
+              <div>
+                <label style={{display:"block",marginBottom:7,fontWeight:800}}>
+                  CEP
+                </label>
+
+                <input
+                  name="address_postal_code"
+                  value={form.address_postal_code}
+                  onChange={(event)=>{
+                    const value=digits(event.target.value).slice(0,8);
+
+                    setForm(current=>({
+                      ...current,
+                      address_postal_code:value,
+                    }));
+                  }}
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  placeholder="00000000"
+                  maxLength={8}
+                  style={input}
+                />
+
+                <small
+                  style={{
+                    display:"block",
+                    minHeight:18,
+                    marginTop:6,
+                    color:erroCep?"#b91c1c":"#64748b",
+                    lineHeight:1.35,
+                    fontWeight:erroCep?750:500,
+                  }}
+                >
+                  {buscandoCep
+                    ?"Buscando endereço..."
+                    :erroCep
+                    ?erroCep
+                    :"Digite o CEP para preencher o endereço automaticamente."}
+                </small>
+              </div>
               <Field label="Rua ou avenida" name="address_street" value={form.address_street} onChange={change}/>
               <Field label="Número" name="address_number" value={form.address_number} onChange={change}/>
               <Field label="Complemento" name="address_complement" value={form.address_complement} onChange={change}/>
