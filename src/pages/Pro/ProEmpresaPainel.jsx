@@ -10,7 +10,6 @@ import {
   getCompanyDashboardPro,
   limparCodigoPro,
   obterAcessoAdminPro,
-  salvarAcessoAdminPro,
   uploadImagemPro,
 } from "../../lib/tappro";
 
@@ -165,10 +164,25 @@ export default function ProEmpresaPainel(){
   const [savedSnapshot,setSavedSnapshot]=useState("");
 
   useEffect(()=>{(async()=>{
-    if(!codigoAdminProValido(cleanCode)){setErro("Código administrativo inválido.");setLoading(false);return;}
+    if(!codigoAdminProValido(cleanCode)){
+      setErro("Código administrativo inválido.");
+      setLoading(false);
+      return;
+    }
+
+    if(obterAcessoAdminPro()!==cleanCode){
+      setErro("Acesso administrativo não autorizado.");
+      setLoading(false);
+      return;
+    }
+
     const {data,error}=await getCompanyDashboardPro(cleanCode);
-    if(error||!data?.found){setErro("Painel da empresa não encontrado.");setLoading(false);return;}
-    if(obterAcessoAdminPro()!==cleanCode) salvarAcessoAdminPro(cleanCode);
+    if(error||!data?.found){
+      setErro("Painel da empresa não encontrado.");
+      setLoading(false);
+      return;
+    }
+
     setDados(data);
     const next={...initial};
     Object.keys(next).forEach(key=>{if(data[key]!==undefined&&data[key]!==null) next[key]=data[key];});

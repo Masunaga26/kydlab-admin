@@ -29,7 +29,6 @@ import {
   regularizarAssinaturaMensalEmpresaPro,
   limparCodigoPro,
   obterAcessoAdminPro,
-  salvarAcessoAdminPro,
   salvarCampanhaProfissionalEmpresaPro,
   salvarConexaoProfissionalEmpresaPro,
   salvarProgramacaoProfissionalEmpresaPro,
@@ -211,7 +210,9 @@ export default function ProEmpresaProfissionalPainel(){
       }
 
       if(obterAcessoAdminPro()!==cleanCode){
-        salvarAcessoAdminPro(cleanCode);
+        setErro("Acesso administrativo não autorizado.");
+        setLoading(false);
+        return;
       }
 
       const subscriptionStatus=String(

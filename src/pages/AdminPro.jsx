@@ -382,6 +382,47 @@ export default function AdminPro() {
     return `${BASE_URL}/pro/acesso/${code}`;
   }
 
+  function publicPieceLink(
+    piece,
+    access
+  ) {
+    if (access?.public_url) {
+      return access.public_url;
+    }
+
+    if (
+      piece?.predefined_profile_type ===
+      "professional"
+    ) {
+      return `${BASE_URL}/pro/profissional/${piece.code}`;
+    }
+
+    if (
+      piece?.predefined_profile_type ===
+      "company"
+    ) {
+      return `${BASE_URL}/pro/empresa/${piece.code}`;
+    }
+
+    return activationLink(
+      piece?.code
+    );
+  }
+
+  function controlCardLink(
+    piece,
+    access
+  ) {
+    if (
+      !piece?.code ||
+      !access?.access_code
+    ) {
+      return "";
+    }
+
+    return `${BASE_URL}/pro/controle/${piece.code}/${access.access_code}`;
+  }
+
   async function obterAcesso(
     piece
   ) {
@@ -621,17 +662,21 @@ export default function AdminPro() {
     const access =
       await obterAcesso(piece);
 
-    if (!access?.panel_url) {
+    const controlUrl =
+      controlCardLink(
+        piece,
+        access
+      );
+
+    if (!controlUrl) {
+      setErro(
+        "Link do cartão-controle não disponível."
+      );
       return;
     }
 
-    window.localStorage.setItem(
-      "tappro_codigo_admin",
-      access.access_code
-    );
-
     window.open(
-      access.panel_url,
+      controlUrl,
       "_blank",
       "noopener,noreferrer"
     );
@@ -643,12 +688,21 @@ export default function AdminPro() {
     const access =
       await obterAcesso(piece);
 
-    if (!access?.public_url) {
+    const publicUrl =
+      publicPieceLink(
+        piece,
+        access
+      );
+
+    if (!publicUrl) {
+      setErro(
+        "Link público da peça não disponível."
+      );
       return;
     }
 
     window.open(
-      access.public_url,
+      publicUrl,
       "_blank",
       "noopener,noreferrer"
     );
@@ -671,6 +725,14 @@ export default function AdminPro() {
             return [
               piece.code,
               access?.access_code || "",
+              publicPieceLink(
+                piece,
+                access
+              ),
+              controlCardLink(
+                piece,
+                access
+              ),
               activationLink(
                 piece.code
               ),
@@ -707,7 +769,9 @@ export default function AdminPro() {
     const header = [
       "codigo_fisico",
       "codigo_admin",
-      "link_ativacao",
+      "link_publico_peca",
+      "link_cartao_controle",
+      "link_ativacao_legado",
       "produto",
       "perfil",
       "quantidade",
@@ -814,7 +878,7 @@ export default function AdminPro() {
 
           .admin-pro-generated {
             display: grid;
-            grid-template-columns: minmax(260px, 1fr) auto auto auto;
+            grid-template-columns: minmax(260px, 1fr) auto auto auto auto;
             gap: 10px;
             align-items: center;
           }
@@ -923,7 +987,7 @@ export default function AdminPro() {
               lineHeight: 1.5,
             }}
           >
-            Gere códigos físicos e administrativos, organize os ambientes e exporte o estoque completo.
+            Gere a peça pública e o cartão-controle privado de cada TAP PRO.
           </p>
 
           <button
@@ -1124,22 +1188,70 @@ export default function AdminPro() {
 
                       <button
                         type="button"
+                        disabled={
+                          !access
+                        }
                         onClick={() =>
                           copiar(
-                            activationLink(
-                              piece.code
+                            publicPieceLink(
+                              piece,
+                              access
                             )
                           )
                         }
                         style={{
                           ...buttonStyle,
-                          background: "#ffffff",
-                          color: "#374151",
+                          background:
+                            access
+                              ? "#f0fdf4"
+                              : "#f3f4f6",
+                          color:
+                            access
+                              ? "#166534"
+                              : "#9ca3af",
                           border:
-                            "1px solid #d1d5db",
+                            "1px solid #bbf7d0",
+                          cursor:
+                            access
+                              ? "pointer"
+                              : "not-allowed",
                         }}
                       >
-                        Copiar link
+                        Link da peça
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={
+                          !access?.access_code
+                        }
+                        onClick={() =>
+                          copiar(
+                            controlCardLink(
+                              piece,
+                              access
+                            )
+                          )
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background:
+                            access?.access_code
+                              ? "#fffaf0"
+                              : "#f3f4f6",
+                          color:
+                            access?.access_code
+                              ? "#8a641f"
+                              : "#9ca3af",
+                          border:
+                            "1px solid #e6d7b8",
+                          cursor:
+                            access?.access_code
+                              ? "pointer"
+                              : "not-allowed",
+                        }}
+                      >
+                        Cartão-controle
                       </button>
                     </div>
                   );
@@ -1170,7 +1282,7 @@ export default function AdminPro() {
               lineHeight: 1.5,
             }}
           >
-            O código físico e o código administrativo são gerados e vinculados imediatamente para estoque e impressão.
+            Cada cadastro gera dois acessos vinculados: a peça pública e o cartão-controle privado do cliente.
           </p>
 
           <form
@@ -1680,14 +1792,49 @@ export default function AdminPro() {
                                 type="button"
                                 onClick={() =>
                                   copiar(
-                                    activationLink(
-                                      piece.code
+                                    publicPieceLink(
+                                      piece,
+                                      access
                                     )
                                   )
                                 }
-                                style={miniButton}
+                                style={{
+                                  ...miniButton,
+                                  background:
+                                    "#f0fdf4",
+                                  color:
+                                    "#166534",
+                                  border:
+                                    "1px solid #bbf7d0",
+                                }}
                               >
-                                Link
+                                Link da peça
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  !access?.access_code
+                                }
+                                onClick={() =>
+                                  copiar(
+                                    controlCardLink(
+                                      piece,
+                                      access
+                                    )
+                                  )
+                                }
+                                style={{
+                                  ...miniButton,
+                                  background:
+                                    "#fffaf0",
+                                  color:
+                                    "#8a641f",
+                                  border:
+                                    "1px solid #e6d7b8",
+                                }}
+                              >
+                                Cartão-controle
                               </button>
 
                               {(piece.status ===
@@ -1711,7 +1858,7 @@ export default function AdminPro() {
                                       "1px solid #e6d7b8",
                                   }}
                                 >
-                                  Painel do cliente
+                                  Testar cartão-controle
                                 </button>
                               )}
 
