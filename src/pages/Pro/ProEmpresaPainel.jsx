@@ -536,7 +536,35 @@ export default function ProEmpresaPainel(){
         .tap-topbar{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
 
         @media(max-width:760px){
-          main{padding-left:10px!important;padding-right:10px!important}
+          html,body,#root{
+            width:100%!important;
+            max-width:100%!important;
+            overflow-x:hidden!important;
+          }
+
+          *{
+            box-sizing:border-box;
+          }
+
+          main{
+            width:100%!important;
+            max-width:100%!important;
+            overflow-x:hidden!important;
+            padding-left:10px!important;
+            padding-right:10px!important;
+          }
+
+          main>section{
+            width:100%!important;
+            max-width:100%!important;
+            min-width:0!important;
+          }
+
+          main section,
+          main form,
+          main div{
+            min-width:0;
+          }
 
           .tap-topbar{grid-template-columns:1fr;gap:14px}
           .tap-topbar>button{width:100%;min-height:46px!important}
@@ -598,24 +626,28 @@ export default function ProEmpresaPainel(){
           }
 
           .tap-bottom-inner{
-            grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
-            gap:8px!important;
-            width:100%;
+            display:grid!important;
+            grid-template-columns:1fr!important;
+            gap:7px!important;
+            width:100%!important;
+            max-width:100%!important;
           }
+
           .tap-bottom-inner>div:first-child{
-            grid-column:1/-1;
-            min-width:0;
+            grid-column:1!important;
+            min-width:0!important;
           }
+
           .tap-bottom-inner button{
             width:100%!important;
             min-width:0!important;
             max-width:100%!important;
-            padding:0 8px!important;
-            font-size:12px!important;
+            min-height:42px!important;
+            padding:0 10px!important;
+            font-size:12.5px!important;
             white-space:normal!important;
             line-height:1.15!important;
-            overflow:hidden;
-            text-overflow:ellipsis;
+            overflow:hidden!important;
           }
         }
       `}</style>
@@ -1254,6 +1286,10 @@ export default function ProEmpresaPainel(){
           left:0,
           right:0,
           bottom:0,
+          width:"100vw",
+          maxWidth:"100vw",
+          boxSizing:"border-box",
+          overflow:"hidden",
           zIndex:40,
           padding:"8px 10px",
           background:"rgba(255,255,255,.96)",
