@@ -592,18 +592,30 @@ export default function ProEmpresaPainel(){
           .tap-professional-inner{grid-template-columns:1fr!important;gap:14px!important}
           .tap-professional-inner button{width:100%;white-space:normal!important}
 
+          .tap-bottom-inner small{
+            display:block;
+            line-height:1.25;
+          }
+
           .tap-bottom-inner{
-            grid-template-columns:1fr 1fr!important;
+            grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
             gap:8px!important;
+            width:100%;
           }
           .tap-bottom-inner>div:first-child{
             grid-column:1/-1;
+            min-width:0;
           }
           .tap-bottom-inner button{
-            width:100%;
-            min-width:0;
-            padding:0 10px!important;
-            font-size:12.5px;
+            width:100%!important;
+            min-width:0!important;
+            max-width:100%!important;
+            padding:0 8px!important;
+            font-size:12px!important;
+            white-space:normal!important;
+            line-height:1.15!important;
+            overflow:hidden;
+            text-overflow:ellipsis;
           }
         }
       `}</style>
@@ -1243,7 +1255,7 @@ export default function ProEmpresaPainel(){
           right:0,
           bottom:0,
           zIndex:40,
-          padding:"10px 14px",
+          padding:"8px 10px",
           background:"rgba(255,255,255,.96)",
           borderTop:"1px solid #e5e7eb",
           backdropFilter:"blur(10px)",
@@ -1274,8 +1286,8 @@ export default function ProEmpresaPainel(){
             onClick={abrirPreview}
             disabled={salvando}
             style={{
-              minHeight:48,
-              padding:"0 16px",
+              minHeight:44,
+              padding:"0 12px",
               borderRadius:13,
               border:"1px solid #b8892f",
               background:"#fffaf0",
@@ -1292,8 +1304,8 @@ export default function ProEmpresaPainel(){
             onClick={()=>persistir()}
             disabled={salvando||!hasChanges}
             style={{
-              minHeight:48,
-              padding:"0 18px",
+              minHeight:44,
+              padding:"0 12px",
               border:0,
               borderRadius:13,
               background:salvando||!hasChanges?"#9ca3af":"#111827",
