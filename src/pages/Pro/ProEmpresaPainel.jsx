@@ -40,7 +40,7 @@ const initial = {
 };
 
 const input={width:"100%",minHeight:48,padding:"12px 13px",borderRadius:12,border:"1px solid #d1d5db",boxSizing:"border-box",fontSize:15};
-const card={marginTop:18,padding:22,borderRadius:22,background:"#fff",border:"1px solid #e5e7eb",boxShadow:"0 12px 30px rgba(0,0,0,.06)"};
+const card={marginTop:14,padding:"clamp(16px,3vw,22px)",borderRadius:20,background:"#fff",border:"1px solid #e5e7eb",boxShadow:"0 10px 26px rgba(0,0,0,.055)"};
 function digits(v){return String(v||"").replace(/\D/g,"");}
 
 
@@ -91,7 +91,7 @@ function StylePreview({ type, selected }) {
 
   if (type === "classic") {
     return (
-      <div style={shell}>
+      <div className="tap-style-preview" style={shell}>
         <div style={{ height: 25, borderRadius: 7, background: p.hero }} />
         <div style={{ width: 22, height: 22, margin: "-9px auto 4px", borderRadius: 7, background: "#ffffff", border: `1px solid ${p.line}` }} />
         <div style={{ width: "50%", height: 4, margin: "0 auto 4px", borderRadius: 999, background: p.text, opacity: .9 }} />
@@ -106,7 +106,7 @@ function StylePreview({ type, selected }) {
 
   if (type === "futuristic") {
     return (
-      <div style={shell}>
+      <div className="tap-style-preview" style={shell}>
         <div style={{ height: 27, borderRadius: 7, background: p.hero, boxShadow: "0 0 14px rgba(139,92,246,.2)" }} />
         <div style={{ display: "grid", gridTemplateColumns: "1.25fr .75fr", gap: 4, marginTop: 5 }}>
           <div style={{ height: 19, borderRadius: 6, background: "linear-gradient(135deg,#312e81,#6d28d9)" }} />
@@ -122,7 +122,7 @@ function StylePreview({ type, selected }) {
 
   if (type === "minimalist") {
     return (
-      <div style={shell}>
+      <div className="tap-style-preview" style={shell}>
         <div style={{ width: 18, height: 18, borderRadius: 6, border: `1px solid ${p.line}` }} />
         <div style={{ width: "53%", height: 5, marginTop: 5, borderRadius: 999, background: p.text }} />
         <div style={{ width: "82%", height: 3, marginTop: 4, borderRadius: 999, background: p.line }} />
@@ -134,7 +134,7 @@ function StylePreview({ type, selected }) {
   }
 
   return (
-    <div style={shell}>
+    <div className="tap-style-preview" style={shell}>
       <div style={{ height: 25, borderRadius: 7, background: p.hero }} />
       <div style={{ height: 15, marginTop: 4, borderRadius: 6, background: p.accent }} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 5 }}>
@@ -534,10 +534,77 @@ export default function ProEmpresaPainel(){
         .tap-actions{columns:2 360px;column-gap:14px}
         .tap-action-card{break-inside:avoid;margin:0 0 14px;width:100%;display:inline-block;box-sizing:border-box}
         .tap-topbar{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+
         @media(max-width:760px){
-          .tap-grid,.tap-choices,.tap-goals{grid-template-columns:1fr}
+          main{padding-left:10px!important;padding-right:10px!important}
+
+          .tap-topbar{grid-template-columns:1fr;gap:14px}
+          .tap-topbar>button{width:100%;min-height:46px!important}
+
+          .tap-identity{grid-template-columns:1fr!important;gap:14px!important}
+          .tap-logo-block{
+            display:grid;
+            grid-template-columns:92px 1fr;
+            gap:12px;
+            align-items:center;
+          }
+          .tap-logo-block>div:first-child{
+            height:92px!important;
+            border-radius:15px!important;
+          }
+          .tap-logo-block>label{
+            margin-top:0!important;
+            min-height:48px;
+            display:grid!important;
+            place-items:center;
+          }
+
+          .tap-grid{grid-template-columns:1fr;gap:12px}
+          .tap-goals{grid-template-columns:1fr 1fr;gap:8px}
+          .tap-goals button{
+            min-height:58px!important;
+            padding:10px!important;
+            border-radius:12px!important;
+            font-size:13px;
+          }
+          .tap-goals small{font-size:10.5px}
+
           .tap-actions{columns:1}
-          .tap-topbar{grid-template-columns:1fr}
+          .tap-action-card{
+            margin-bottom:10px;
+            padding:13px!important;
+            border-radius:15px!important;
+          }
+
+          .tap-choices{grid-template-columns:1fr 1fr;gap:8px}
+          .tap-choices>button{
+            padding:6px!important;
+            border-radius:12px!important;
+          }
+          .tap-style-preview{
+            height:62px!important;
+            border-radius:9px!important;
+          }
+          .tap-choices strong{font-size:13px!important}
+          .tap-choices small{font-size:10.5px!important}
+          .tap-choices span{font-size:9px!important;padding:3px 6px!important}
+
+          .tap-professional-inner{grid-template-columns:1fr!important;gap:14px!important}
+          .tap-professional-inner button{width:100%;white-space:normal!important}
+
+          .tap-bottom-inner{
+            grid-template-columns:1fr 1fr!important;
+            gap:8px!important;
+          }
+          .tap-bottom-inner>div:first-child{
+            grid-column:1/-1;
+          }
+          .tap-bottom-inner button{
+            width:100%;
+            min-width:0;
+            padding:0 10px!important;
+            font-size:12.5px;
+          }
         }
       `}</style>
 
@@ -754,8 +821,8 @@ export default function ProEmpresaPainel(){
               description="Use uma identificação simples e fácil de reconhecer."
             />
 
-            <div style={{display:"grid",gridTemplateColumns:"150px 1fr",gap:20,alignItems:"start"}}>
-              <div>
+            <div className="tap-identity" style={{display:"grid",gridTemplateColumns:"150px 1fr",gap:20,alignItems:"start"}}>
+              <div className="tap-logo-block">
                 <div
                   style={{
                     height:116,
@@ -1047,6 +1114,7 @@ export default function ProEmpresaPainel(){
             }}
           >
             <div
+              className="tap-professional-inner"
               style={{
                 display:"grid",
                 gridTemplateColumns:"1fr auto",
@@ -1068,7 +1136,7 @@ export default function ProEmpresaPainel(){
                   Plano Profissional
                 </p>
 
-                <h2 style={{margin:0,fontSize:22}}>
+                <h2 style={{margin:0,fontSize:"clamp(21px,6vw,28px)",lineHeight:1.18}}>
                   Conecta tudo o que move seu negócio
                 </h2>
 
@@ -1182,6 +1250,7 @@ export default function ProEmpresaPainel(){
         }}
       >
         <div
+          className="tap-bottom-inner"
           style={{
             maxWidth:940,
             margin:"0 auto",
@@ -1249,11 +1318,11 @@ function SectionTitle({kicker,title,description,aside,icon}){
         <p style={{margin:"0 0 5px",fontSize:11,fontWeight:900,color:"#8a641f",textTransform:"uppercase",letterSpacing:".6px"}}>
           {kicker}
         </p>
-        <h2 style={{margin:0,display:"flex",alignItems:"center",gap:8,fontSize:22,color:"inherit"}}>
+        <h2 style={{margin:0,display:"flex",alignItems:"center",gap:8,fontSize:"clamp(18px,5vw,22px)",color:"inherit"}}>
           {icon}{title}
         </h2>
         {description&&(
-          <p style={{margin:"7px 0 0",color:"inherit",opacity:.72,lineHeight:1.5}}>
+          <p style={{margin:"7px 0 0",color:"inherit",opacity:.72,lineHeight:1.45,fontSize:"clamp(13px,3.8vw,16px)"}}>
             {description}
           </p>
         )}
