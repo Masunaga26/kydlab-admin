@@ -1119,10 +1119,80 @@ export default function AdminPro() {
             box-shadow: 0 30px 80px rgba(0,0,0,0.28);
           }
 
+          .admin-pro-mobile-list {
+            display: none;
+          }
+
+          .admin-pro-mobile-card {
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            box-shadow: 0 8px 24px rgba(17,24,39,0.06);
+          }
+
+          .admin-pro-mobile-card + .admin-pro-mobile-card {
+            margin-top: 12px;
+          }
+
+          .admin-pro-mobile-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 12px;
+            margin-top: 12px;
+          }
+
+          .admin-pro-mobile-meta-item small {
+            display: block;
+            margin-bottom: 3px;
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+          }
+
+          .admin-pro-mobile-section-title {
+            margin: 16px 0 8px;
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+          }
+
+          .admin-pro-mobile-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+
+          .admin-pro-mobile-actions button {
+            width: 100%;
+            min-height: 42px;
+          }
+
           @media (max-width: 840px) {
             .admin-pro-generated,
             .admin-pro-grid {
               grid-template-columns: 1fr;
+            }
+
+            .admin-pro-table-wrap {
+              display: none;
+            }
+
+            .admin-pro-mobile-list {
+              display: block;
+              margin-top: 16px;
+            }
+
+            .admin-pro-actions-header,
+            .admin-pro-actions-cell {
+              position: static;
+              width: auto;
+              min-width: 0;
+              box-shadow: none;
             }
           }
         `}
@@ -2033,6 +2103,293 @@ export default function AdminPro() {
                   )}
                 </tbody>
               </table>
+
+              {!filteredPieces.length && (
+                <p
+                  style={{
+                    padding: "20px",
+                    textAlign: "center",
+                    color: "#6b7280",
+                  }}
+                >
+                  Nenhuma peça encontrada.
+                </p>
+              )}
+            </div>
+          )}
+
+          {!loading && (
+            <div className="admin-pro-mobile-list">
+              {filteredPieces.map(
+                (piece) => {
+                  const access =
+                    acessos[piece.id];
+
+                  return (
+                    <article
+                      key={piece.id}
+                      className="admin-pro-mobile-card"
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: "12px",
+                        }}
+                      >
+                        <div>
+                          <small
+                            style={{
+                              display: "block",
+                              marginBottom: "4px",
+                              color: "#6b7280",
+                              fontWeight: 800,
+                              letterSpacing: ".4px",
+                            }}
+                          >
+                            CÓDIGO FÍSICO
+                          </small>
+
+                          <strong
+                            style={{
+                              display: "block",
+                              fontSize: "18px",
+                              letterSpacing: ".8px",
+                            }}
+                          >
+                            {piece.code}
+                          </strong>
+                        </div>
+
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            padding: "6px 9px",
+                            borderRadius: "999px",
+                            background:
+                              piece.status === "available"
+                                ? "#ecfdf5"
+                                : piece.status === "activated"
+                                ? "#eff6ff"
+                                : "#f3f4f6",
+                            color:
+                              piece.status === "available"
+                                ? "#166534"
+                                : piece.status === "activated"
+                                ? "#1d4ed8"
+                                : "#374151",
+                            fontSize: "11px",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {STATUS_LABELS[
+                            piece.status
+                          ] || piece.status}
+                        </span>
+                      </div>
+
+                      <div className="admin-pro-mobile-meta">
+                        <div className="admin-pro-mobile-meta-item">
+                          <small>Código admin</small>
+                          <strong>
+                            {access?.access_code ||
+                              "..."}
+                          </strong>
+                        </div>
+
+                        <div className="admin-pro-mobile-meta-item">
+                          <small>Produto</small>
+                          <span>
+                            {PRODUCT_LABELS[
+                              piece.product_type
+                            ] ||
+                              piece.product_type}
+                          </span>
+                        </div>
+
+                        <div className="admin-pro-mobile-meta-item">
+                          <small>Perfil</small>
+                          <span>
+                            {piece.predefined_profile_type
+                              ? PROFILE_LABELS[
+                                  piece.predefined_profile_type
+                                ]
+                              : "Cliente escolhe"}
+                          </span>
+                        </div>
+
+                        <div className="admin-pro-mobile-meta-item">
+                          <small>Ambiente</small>
+                          <span>
+                            {ENVIRONMENT_LABELS[
+                              getEnvironment(
+                                piece.notes
+                              )
+                            ]}
+                          </span>
+                        </div>
+
+                        <div className="admin-pro-mobile-meta-item">
+                          <small>Identificação</small>
+                          <span>
+                            {getProfileIdentification(
+                              piece,
+                              access
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="admin-pro-mobile-meta-item">
+                          <small>Quantidade</small>
+                          <span>
+                            {piece.physical_quantity}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="admin-pro-mobile-section-title">
+                        Produção
+                      </div>
+
+                      <div className="admin-pro-mobile-actions">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            baixarQrTotem(piece)
+                          }
+                          style={{
+                            ...miniButton,
+                            background: "#111827",
+                            color: "#ffffff",
+                            border:
+                              "1px solid #111827",
+                          }}
+                        >
+                          Baixar QR do Totem
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            baixarQrCartao(piece)
+                          }
+                          style={{
+                            ...miniButton,
+                            background: "#b8892f",
+                            color: "#ffffff",
+                            border:
+                              "1px solid #b8892f",
+                          }}
+                        >
+                          Baixar QR do Cartão
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copiar(
+                              publicPieceLink(
+                                piece,
+                                access
+                              )
+                            )
+                          }
+                          style={{
+                            ...miniButton,
+                            background: "#f0fdf4",
+                            color: "#166534",
+                            border:
+                              "1px solid #bbf7d0",
+                          }}
+                        >
+                          Copiar link do Totem
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copiar(
+                              controlCardLink(
+                                piece
+                              )
+                            )
+                          }
+                          style={{
+                            ...miniButton,
+                            background: "#fffaf0",
+                            color: "#8a641f",
+                            border:
+                              "1px solid #e6d7b8",
+                          }}
+                        >
+                          Copiar link do Cartão
+                        </button>
+                      </div>
+
+                      <div className="admin-pro-mobile-section-title">
+                        Administração
+                      </div>
+
+                      <div className="admin-pro-mobile-actions">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            startEdit(piece)
+                          }
+                          style={{
+                            ...miniButton,
+                            background: "#eff6ff",
+                            color: "#1d4ed8",
+                            border:
+                              "1px solid #bfdbfe",
+                          }}
+                        >
+                          Editar peça
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            limpandoId ===
+                            piece.id
+                          }
+                          onClick={() =>
+                            limparCadastro(
+                              piece
+                            )
+                          }
+                          style={{
+                            ...miniButton,
+                            background:
+                              limpandoId ===
+                              piece.id
+                                ? "#e5e7eb"
+                                : "#fff1f2",
+                            color:
+                              limpandoId ===
+                              piece.id
+                                ? "#6b7280"
+                                : "#be123c",
+                            border:
+                              "1px solid #fecdd3",
+                            cursor:
+                              limpandoId ===
+                              piece.id
+                                ? "not-allowed"
+                                : "pointer",
+                          }}
+                        >
+                          {limpandoId ===
+                          piece.id
+                            ? "Limpando..."
+                            : "Limpar cadastro"}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                }
+              )}
 
               {!filteredPieces.length && (
                 <p
