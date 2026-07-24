@@ -7,6 +7,7 @@ import {
 import {
   adminAtualizarPecaPro,
   adminCriarPecasPro,
+  adminLimparCadastroPecaPro,
   adminListarPecasPro,
   adminObterAcessoPecaPro,
 } from "../lib/tappro";
@@ -226,6 +227,9 @@ export default function AdminPro() {
   const [salvando, setSalvando] =
     useState(false);
 
+  const [limpandoId, setLimpandoId] =
+    useState(null);
+
   const [erro, setErro] =
     useState("");
 
@@ -362,18 +366,55 @@ export default function AdminPro() {
   }
 
   async function copiar(text) {
+    const value = String(text || "").trim();
+
+    if (!value) {
+      setErro("Não há conteúdo disponível para copiar.");
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(
-        String(text || "")
-      );
+      if (
+        navigator.clipboard &&
+        window.isSecureContext
+      ) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea =
+          document.createElement("textarea");
+
+        textarea.value = value;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        textarea.style.pointerEvents = "none";
+
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(
+          0,
+          textarea.value.length
+        );
+
+        const copied =
+          document.execCommand("copy");
+
+        textarea.remove();
+
+        if (!copied) {
+          throw new Error(
+            "O navegador recusou a cópia."
+          );
+        }
+      }
 
       setErro("");
-      setSucesso("Copiado!");
+      setSucesso("Link copiado!");
     } catch (error) {
       console.error(error);
 
       setErro(
-        "Não foi possível copiar."
+        "Não foi possível copiar automaticamente. Abra o link e copie pela barra do navegador."
       );
     }
   }
@@ -418,6 +459,204 @@ export default function AdminPro() {
     }
 
     return `${BASE_URL}/pro/controle/${piece.code}`;
+  }
+
+  function qrImageUrl(destination) {
+    const text =
+      String(destination || "").trim();
+
+    if (!text) {
+      return "";
+    }
+
+    const params =
+      new URLSearchParams({
+        text,
+        size: "1200",
+        margin: "4",
+        ecLevel: "H",
+        format: "png",
+        dark: "000000",
+        light: "ffffff",
+      });
+
+    return `https://quickchart.io/qr?${params.toString()}`;
+  }
+
+  async function baixarQrPng({
+    destination,
+    filename,
+    label,
+  }) {
+    const imageUrl =
+      qrImageUrl(destination);
+
+    if (!imageUrl) {
+      setErro(
+        "Destino do QR Code não disponível."
+      );
+      return;
+    }
+
+    setErro("");
+    setSucesso(
+      `Preparando ${label}...`
+    );
+
+    try {
+      const response =
+        await fetch(imageUrl);
+
+      if (!response.ok) {
+        throw new Error(
+          "Falha ao gerar QR Code."
+        );
+      }
+
+      const blob =
+        await response.blob();
+
+      const objectUrl =
+        URL.createObjectURL(blob);
+
+      const link =
+        document.createElement("a");
+
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+
+      setSucesso(
+        `${label} baixado em PNG.`
+      );
+    } catch (error) {
+      console.error(error);
+
+      /*
+       * Fallback para navegadores que bloqueiam
+       * o download via fetch.
+       */
+      const link =
+        document.createElement("a");
+
+      link.href = imageUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setSucesso(
+        `${label} aberto. Salve a imagem em PNG pelo navegador.`
+      );
+    }
+  }
+
+  async function baixarQrTotem(
+    piece
+  ) {
+    const access =
+      acessos[piece.id] ||
+      await obterAcesso(piece);
+
+    await baixarQrPng({
+      destination:
+        publicPieceLink(
+          piece,
+          access
+        ),
+      filename:
+        `QR-TOTEM-${piece.code}.png`,
+      label:
+        "QR do Totem",
+    });
+  }
+
+  async function baixarQrCartao(
+    piece
+  ) {
+    await baixarQrPng({
+      destination:
+        controlCardLink(piece),
+      filename:
+        `QR-CARTAO-CONTROLE-${piece.code}.png`,
+      label:
+        "QR do Cartão-controle",
+    });
+  }
+
+  async function limparCadastro(
+    piece
+  ) {
+    if (!piece?.id) {
+      return;
+    }
+
+    const firstConfirm =
+      window.confirm(
+        `Limpar todo o cadastro da peça ${piece.code}?\n\nOs códigos físico e administrativo serão preservados. Os dados do cliente, imagens, funções, campanhas, configurações e acessos vinculados serão apagados.`
+      );
+
+    if (!firstConfirm) {
+      return;
+    }
+
+    const typed =
+      window.prompt(
+        `Confirmação final: digite o código físico ${piece.code}`
+      );
+
+    if (
+      clean(typed).toUpperCase() !==
+      clean(piece.code).toUpperCase()
+    ) {
+      setErro(
+        "Limpeza cancelada: o código físico digitado não confere."
+      );
+      return;
+    }
+
+    setLimpandoId(piece.id);
+    setErro("");
+    setSucesso("");
+
+    const { error } =
+      await adminLimparCadastroPecaPro(
+        piece.id
+      );
+
+    setLimpandoId(null);
+
+    if (error) {
+      console.error(error);
+
+      setErro(
+        error.message ||
+          "Não foi possível limpar o cadastro."
+      );
+      return;
+    }
+
+    setAcessos((current) => {
+      const next = {
+        ...current,
+      };
+
+      delete next[piece.id];
+      return next;
+    });
+
+    setSucesso(
+      `Cadastro da peça ${piece.code} limpo. Os códigos foram preservados.`
+    );
+
+    await carregarPecas();
   }
 
   async function obterAcesso(
@@ -653,57 +892,6 @@ export default function AdminPro() {
     await carregarPecas();
   }
 
-  async function openClientPanel(
-    piece
-  ) {
-    const access =
-      await obterAcesso(piece);
-
-    const controlUrl =
-      controlCardLink(
-        piece,
-        access
-      );
-
-    if (!controlUrl) {
-      setErro(
-        "Link do cartão-controle não disponível."
-      );
-      return;
-    }
-
-    window.open(
-      controlUrl,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
-
-  async function openPublicPage(
-    piece
-  ) {
-    const access =
-      await obterAcesso(piece);
-
-    const publicUrl =
-      publicPieceLink(
-        piece,
-        access
-      );
-
-    if (!publicUrl) {
-      setErro(
-        "Link público da peça não disponível."
-      );
-      return;
-    }
-
-    window.open(
-      publicUrl,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
 
   async function exportCsv() {
     setErro("");
@@ -875,7 +1063,7 @@ export default function AdminPro() {
 
           .admin-pro-generated {
             display: grid;
-            grid-template-columns: minmax(260px, 1fr) auto auto auto auto;
+            grid-template-columns: minmax(260px, 1fr) repeat(4, auto);
             gap: 10px;
             align-items: center;
           }
@@ -888,8 +1076,8 @@ export default function AdminPro() {
           .admin-pro-actions-cell {
             position: sticky;
             right: 0;
-            min-width: 300px;
-            width: 300px;
+            min-width: 390px;
+            width: 390px;
             background: #ffffff;
             box-shadow: -10px 0 18px rgba(17,24,39,0.06);
             z-index: 2;
@@ -1145,51 +1333,6 @@ export default function AdminPro() {
                         type="button"
                         onClick={() =>
                           copiar(
-                            piece.code
-                          )
-                        }
-                        style={{
-                          ...buttonStyle,
-                          background: "#111827",
-                          color: "#ffffff",
-                        }}
-                      >
-                        Copiar físico
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={
-                          !access?.access_code
-                        }
-                        onClick={() =>
-                          copiar(
-                            access?.access_code
-                          )
-                        }
-                        style={{
-                          ...buttonStyle,
-                          background:
-                            access?.access_code
-                              ? "#b8892f"
-                              : "#9ca3af",
-                          color: "#ffffff",
-                          cursor:
-                            access?.access_code
-                              ? "pointer"
-                              : "not-allowed",
-                        }}
-                      >
-                        Copiar admin
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={
-                          !access
-                        }
-                        onClick={() =>
-                          copiar(
                             publicPieceLink(
                               piece,
                               access
@@ -1198,57 +1341,65 @@ export default function AdminPro() {
                         }
                         style={{
                           ...buttonStyle,
-                          background:
-                            access
-                              ? "#f0fdf4"
-                              : "#f3f4f6",
-                          color:
-                            access
-                              ? "#166534"
-                              : "#9ca3af",
+                          background: "#f0fdf4",
+                          color: "#166534",
                           border:
                             "1px solid #bbf7d0",
-                          cursor:
-                            access
-                              ? "pointer"
-                              : "not-allowed",
                         }}
                       >
-                        Link da peça
+                        Copiar link do Totem
                       </button>
 
                       <button
                         type="button"
-                        disabled={
-                          !access?.access_code
-                        }
                         onClick={() =>
                           copiar(
                             controlCardLink(
-                              piece,
-                              access
+                              piece
                             )
                           )
                         }
                         style={{
                           ...buttonStyle,
-                          background:
-                            access?.access_code
-                              ? "#fffaf0"
-                              : "#f3f4f6",
-                          color:
-                            access?.access_code
-                              ? "#8a641f"
-                              : "#9ca3af",
+                          background: "#fffaf0",
+                          color: "#8a641f",
                           border:
                             "1px solid #e6d7b8",
-                          cursor:
-                            access?.access_code
-                              ? "pointer"
-                              : "not-allowed",
                         }}
                       >
-                        Cartão-controle
+                        Copiar link do Cartão
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          baixarQrTotem(
+                            piece
+                          )
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background: "#111827",
+                          color: "#ffffff",
+                        }}
+                      >
+                        Baixar QR do Totem
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          baixarQrCartao(
+                            piece
+                          )
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background: "#b8892f",
+                          color: "#ffffff",
+                        }}
+                      >
+                        Baixar QR do Cartão
                       </button>
                     </div>
                   );
@@ -1756,39 +1907,6 @@ export default function AdminPro() {
                                 type="button"
                                 onClick={() =>
                                   copiar(
-                                    piece.code
-                                  )
-                                }
-                                style={miniButton}
-                              >
-                                Código físico
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={
-                                  !access?.access_code
-                                }
-                                onClick={() =>
-                                  copiar(
-                                    access?.access_code
-                                  )
-                                }
-                                style={{
-                                  ...miniButton,
-                                  background:
-                                    "#111827",
-                                  color:
-                                    "#ffffff",
-                                }}
-                              >
-                                Código admin
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  copiar(
                                     publicPieceLink(
                                       piece,
                                       access
@@ -1805,19 +1923,15 @@ export default function AdminPro() {
                                     "1px solid #bbf7d0",
                                 }}
                               >
-                                Link da peça
+                                Copiar link do Totem
                               </button>
 
                               <button
                                 type="button"
-                                disabled={
-                                  !access?.access_code
-                                }
                                 onClick={() =>
                                   copiar(
                                     controlCardLink(
-                                      piece,
-                                      access
+                                      piece
                                     )
                                   )
                                 }
@@ -1831,56 +1945,86 @@ export default function AdminPro() {
                                     "1px solid #e6d7b8",
                                 }}
                               >
-                                Cartão-controle
+                                Copiar link do Cartão
                               </button>
 
-                              {(piece.status ===
-                                "available" ||
-                                piece.status ===
-                                  "activated") && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openClientPanel(
-                                      piece
-                                    )
-                                  }
-                                  style={{
-                                    ...miniButton,
-                                    background:
-                                      "#fffaf0",
-                                    color:
-                                      "#8a641f",
-                                    border:
-                                      "1px solid #e6d7b8",
-                                  }}
-                                >
-                                  Testar cartão-controle
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  baixarQrTotem(
+                                    piece
+                                  )
+                                }
+                                style={{
+                                  ...miniButton,
+                                  background:
+                                    "#111827",
+                                  color:
+                                    "#ffffff",
+                                  border:
+                                    "1px solid #111827",
+                                }}
+                              >
+                                Baixar QR do Totem
+                              </button>
 
-                              {piece.status ===
-                                "activated" && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openPublicPage(
-                                      piece
-                                    )
-                                  }
-                                  style={{
-                                    ...miniButton,
-                                    background:
-                                      "#f0fdf4",
-                                    color:
-                                      "#166534",
-                                    border:
-                                      "1px solid #bbf7d0",
-                                  }}
-                                >
-                                  Página pública
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  baixarQrCartao(
+                                    piece
+                                  )
+                                }
+                                style={{
+                                  ...miniButton,
+                                  background:
+                                    "#b8892f",
+                                  color:
+                                    "#ffffff",
+                                  border:
+                                    "1px solid #b8892f",
+                                }}
+                              >
+                                Baixar QR do Cartão
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  limpandoId ===
+                                  piece.id
+                                }
+                                onClick={() =>
+                                  limparCadastro(
+                                    piece
+                                  )
+                                }
+                                style={{
+                                  ...miniButton,
+                                  background:
+                                    limpandoId ===
+                                    piece.id
+                                      ? "#e5e7eb"
+                                      : "#fff1f2",
+                                  color:
+                                    limpandoId ===
+                                    piece.id
+                                      ? "#6b7280"
+                                      : "#be123c",
+                                  border:
+                                    "1px solid #fecdd3",
+                                  cursor:
+                                    limpandoId ===
+                                    piece.id
+                                      ? "not-allowed"
+                                      : "pointer",
+                                }}
+                              >
+                                {limpandoId ===
+                                piece.id
+                                  ? "Limpando..."
+                                  : "Limpar cadastro"}
+                              </button>
                             </div>
                           </td>
                         </tr>
