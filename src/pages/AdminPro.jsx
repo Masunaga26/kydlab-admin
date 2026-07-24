@@ -409,7 +409,9 @@ export default function AdminPro() {
       }
 
       setErro("");
-      setSucesso("Link copiado!");
+      setSucesso(
+        `Link completo copiado: ${value}`
+      );
     } catch (error) {
       console.error(error);
 
@@ -423,12 +425,35 @@ export default function AdminPro() {
     return `${BASE_URL}/pro/acesso/${code}`;
   }
 
+  function absoluteUrl(value) {
+    const raw =
+      String(value || "").trim();
+
+    if (!raw) {
+      return "";
+    }
+
+    if (
+      /^https?:\/\//i.test(raw)
+    ) {
+      return raw;
+    }
+
+    if (raw.startsWith("/")) {
+      return `${BASE_URL}${raw}`;
+    }
+
+    return `${BASE_URL}/${raw}`;
+  }
+
   function publicPieceLink(
     piece,
     access
   ) {
     if (access?.public_url) {
-      return access.public_url;
+      return absoluteUrl(
+        access.public_url
+      );
     }
 
     if (
@@ -445,8 +470,10 @@ export default function AdminPro() {
       return `${BASE_URL}/pro/empresa/${piece.code}`;
     }
 
-    return activationLink(
-      piece?.code
+    return absoluteUrl(
+      activationLink(
+        piece?.code
+      )
     );
   }
 
