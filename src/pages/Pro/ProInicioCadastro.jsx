@@ -15,8 +15,10 @@ import {
   getInicioPerfilPorAcessoPro,
   iniciarPerfilDaPecaPro,
   limparCodigoPro,
+  obterAcessoAdminPorPecaPro,
   obterAcessoAdminPro,
-  salvarAcessoAdminPro,
+  salvarAcessoAdminPorPecaPro,
+  validarAcessoAdminDaPecaPro,
 } from "../../lib/tappro";
 
 export default function ProInicioCadastro() {
@@ -48,10 +50,20 @@ export default function ProInicioCadastro() {
   const [mensagem, setMensagem] =
     useState("Verificando este aparelho...");
 
-  const codigoSalvo = useMemo(
-    () => obterAcessoAdminPro(),
-    []
-  );
+  const codigoSalvoDaPeca =
+    useMemo(
+      () =>
+        obterAcessoAdminPorPecaPro(
+          cleanPieceCode
+        ),
+      [cleanPieceCode]
+    );
+
+  const codigoAntigoGlobal =
+    useMemo(
+      () => obterAcessoAdminPro(),
+      []
+    );
 
   function abrirPainel(
     profileType,
@@ -74,6 +86,37 @@ export default function ProInicioCadastro() {
     }
 
     return false;
+  }
+
+  async function validarVinculo(
+    accessCode
+  ) {
+    if (!cleanPieceCode) {
+      return {
+        valid: true,
+        error: null,
+      };
+    }
+
+    const result =
+      await validarAcessoAdminDaPecaPro(
+        cleanPieceCode,
+        accessCode
+      );
+
+    if (result.error) {
+      return {
+        valid: false,
+        error: result.error,
+      };
+    }
+
+    return {
+      valid:
+        result.data?.valid === true ||
+        result.data?.ok === true,
+      error: null,
+    };
   }
 
   async function validarEEntrar(
@@ -101,70 +144,74 @@ export default function ProInicioCadastro() {
 
     try {
       /*
-       * 1. Primeiro procura um perfil já existente.
-       * Isso permite que clientes já cadastrados voltem
-       * ao painel normalmente.
+       * Primeiro confirma que o código administrativo
+       * pertence exatamente à peça aberta.
        */
-      let profileResult =
-        await getInicioPerfilPorAcessoPro(
-          cleanAccessCode
-        );
-
-      /*
-       * 2. Somente quando ainda não existe perfil,
-       * inicia a peça pela primeira vez.
-       */
-      if (
-        (
-          profileResult.error ||
-          !profileResult.data?.found
-        ) &&
-        cleanPieceCode
-      ) {
-        const startResult =
-          await iniciarPerfilDaPecaPro(
-            cleanPieceCode
-          );
-
-        if (startResult.error) {
-          console.error(
-            "Erro ao iniciar a peça:",
-            startResult.error
-          );
-
-          if (!silent) {
-            setErro(
-              startResult.error.message ||
-                "Não foi possível iniciar este cartão-controle."
-            );
-          }
-
-          return false;
-        }
-
-        const expectedAccessCode =
-          limparCodigoPro(
-            startResult.data?.access_code
-          );
-
-        if (
-          !expectedAccessCode ||
-          expectedAccessCode !==
-            cleanAccessCode
-        ) {
-          if (!silent) {
-            setErro(
-              "Código de acesso incorreto."
-            );
-          }
-
-          return false;
-        }
-
-        profileResult =
-          await getInicioPerfilPorAcessoPro(
+      if (cleanPieceCode) {
+        const binding =
+          await validarVinculo(
             cleanAccessCode
           );
+
+        /*
+         * Peça nova: ainda pode não existir perfil.
+         * Nesse caso, tenta iniciar a peça uma única vez.
+         */
+        if (!binding.valid) {
+          const profileCheck =
+            await getInicioPerfilPorAcessoPro(
+              cleanAccessCode
+            );
+
+          const profileAlreadyExists =
+            !profileCheck.error &&
+            profileCheck.data?.found;
+
+          if (profileAlreadyExists) {
+            if (!silent) {
+              setErro(
+                "Este código não pertence a este cartão-controle."
+              );
+            }
+
+            return false;
+          }
+
+          const startResult =
+            await iniciarPerfilDaPecaPro(
+              cleanPieceCode
+            );
+
+          if (startResult.error) {
+            if (!silent) {
+              setErro(
+                startResult.error.message ||
+                  "Não foi possível iniciar este cartão-controle."
+              );
+            }
+
+            return false;
+          }
+
+          const expectedAccessCode =
+            limparCodigoPro(
+              startResult.data?.access_code
+            );
+
+          if (
+            !expectedAccessCode ||
+            expectedAccessCode !==
+              cleanAccessCode
+          ) {
+            if (!silent) {
+              setErro(
+                "Código de acesso incorreto."
+              );
+            }
+
+            return false;
+          }
+        }
       } else if (
         cleanLegacyAccessCode &&
         cleanLegacyAccessCode !==
@@ -179,14 +226,15 @@ export default function ProInicioCadastro() {
         return false;
       }
 
+      const profileResult =
+        await getInicioPerfilPorAcessoPro(
+          cleanAccessCode
+        );
+
       if (
         profileResult.error ||
         !profileResult.data?.found
       ) {
-        console.error(
-          profileResult.error
-        );
-
         if (!silent) {
           setErro(
             "Não foi possível localizar este acesso TAP PRO."
@@ -197,7 +245,9 @@ export default function ProInicioCadastro() {
       }
 
       if (
-        !salvarAcessoAdminPro(
+        cleanPieceCode &&
+        !salvarAcessoAdminPorPecaPro(
+          cleanPieceCode,
           cleanAccessCode
         )
       ) {
@@ -251,12 +301,11 @@ export default function ProInicioCadastro() {
       }
 
       /*
-       * Aparelho já autorizado:
-       * tenta entrar automaticamente.
+       * 1. Tenta a autorização nova, específica da peça.
        */
       if (
         codigoAdminProValido(
-          codigoSalvo
+          codigoSalvoDaPeca
         )
       ) {
         setMensagem(
@@ -265,7 +314,7 @@ export default function ProInicioCadastro() {
 
         const entrou =
           await validarEEntrar(
-            codigoSalvo,
+            codigoSalvoDaPeca,
             true
           );
 
@@ -275,9 +324,31 @@ export default function ProInicioCadastro() {
       }
 
       /*
-       * Navegador novo:
-       * exibe o formulário de código.
+       * 2. Migração dos celulares antigos:
+       * valida o código global antigo contra esta peça.
+       * Se pertencer, salva no novo formato e entra.
+       * Se não pertencer, ignora e pede o código correto.
        */
+      if (
+        codigoAdminProValido(
+          codigoAntigoGlobal
+        )
+      ) {
+        setMensagem(
+          "Atualizando o acesso deste aparelho..."
+        );
+
+        const entrou =
+          await validarEEntrar(
+            codigoAntigoGlobal,
+            true
+          );
+
+        if (entrou || !active) {
+          return;
+        }
+      }
+
       if (active) {
         setMensagem("");
         setLoading(false);
@@ -291,7 +362,8 @@ export default function ProInicioCadastro() {
     };
   }, [
     cleanPieceCode,
-    codigoSalvo,
+    codigoSalvoDaPeca,
+    codigoAntigoGlobal,
   ]);
 
   async function submit(event) {

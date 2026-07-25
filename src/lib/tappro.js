@@ -709,26 +709,6 @@ export async function adminAtualizarPecaPro({
 }
 
 
-export async function adminLimparCadastroPecaPro(
-  pieceId
-) {
-  const { data, error } =
-    await supabase
-      .schema("tappro")
-      .rpc(
-        "admin_reset_piece_registration",
-        {
-          p_piece_id: pieceId,
-        }
-      );
-
-  return {
-    data: data || null,
-    error,
-  };
-}
-
-
 export async function getPieceAccessStatePro(
   code
 ) {
@@ -801,6 +781,126 @@ export function encerrarAcessoAdminPro() {
   window.localStorage.removeItem(
     CHAVE_ADMIN_PRO
   );
+}
+
+
+function chaveAcessoAdminPorPecaPro(
+  pieceCode
+) {
+  const cleanPieceCode =
+    limparCodigoPro(pieceCode);
+
+  return cleanPieceCode
+    ? `tappro_codigo_admin_${cleanPieceCode}`
+    : "";
+}
+
+export function salvarAcessoAdminPorPecaPro(
+  pieceCode,
+  accessCode
+) {
+  const cleanPieceCode =
+    limparCodigoPro(pieceCode);
+
+  const cleanAccessCode =
+    limparCodigoPro(accessCode);
+
+  if (
+    !codigoPecaProValido(cleanPieceCode) ||
+    !codigoAdminProValido(cleanAccessCode)
+  ) {
+    return false;
+  }
+
+  window.localStorage.setItem(
+    chaveAcessoAdminPorPecaPro(
+      cleanPieceCode
+    ),
+    cleanAccessCode
+  );
+
+  /*
+   * Mantém compatibilidade com os painéis atuais,
+   * que ainda leem o código administrativo global.
+   */
+  salvarAcessoAdminPro(
+    cleanAccessCode
+  );
+
+  return true;
+}
+
+export function obterAcessoAdminPorPecaPro(
+  pieceCode
+) {
+  const cleanPieceCode =
+    limparCodigoPro(pieceCode);
+
+  if (
+    !codigoPecaProValido(
+      cleanPieceCode
+    )
+  ) {
+    return "";
+  }
+
+  return limparCodigoPro(
+    window.localStorage.getItem(
+      chaveAcessoAdminPorPecaPro(
+        cleanPieceCode
+      )
+    )
+  );
+}
+
+export function encerrarAcessoAdminPorPecaPro(
+  pieceCode
+) {
+  const cleanPieceCode =
+    limparCodigoPro(pieceCode);
+
+  if (
+    !codigoPecaProValido(
+      cleanPieceCode
+    )
+  ) {
+    return;
+  }
+
+  window.localStorage.removeItem(
+    chaveAcessoAdminPorPecaPro(
+      cleanPieceCode
+    )
+  );
+}
+
+export async function validarAcessoAdminDaPecaPro(
+  pieceCode,
+  accessCode
+) {
+  const cleanPieceCode =
+    limparCodigoPro(pieceCode);
+
+  const cleanAccessCode =
+    limparCodigoPro(accessCode);
+
+  const { data, error } =
+    await supabase
+      .schema("tappro")
+      .rpc(
+        "validate_piece_admin_access",
+        {
+          p_piece_code:
+            cleanPieceCode,
+          p_access_code:
+            cleanAccessCode,
+        }
+      );
+
+  return {
+    data: data || null,
+    error,
+  };
 }
 
 export async function iniciarPerfilDaPecaPro(
