@@ -709,6 +709,26 @@ export async function adminAtualizarPecaPro({
 }
 
 
+export async function adminLimparCadastroPecaPro(
+  pieceId
+) {
+  const { data, error } =
+    await supabase
+      .schema("tappro")
+      .rpc(
+        "admin_reset_piece_registration",
+        {
+          p_piece_id: pieceId,
+        }
+      );
+
+  return {
+    data: data || null,
+    error,
+  };
+}
+
+
 export async function getPieceAccessStatePro(
   code
 ) {
