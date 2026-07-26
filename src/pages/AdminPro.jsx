@@ -4,6 +4,9 @@ import {
   useState,
 } from "react";
 
+import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
+
 import {
   adminAtualizarPecaPro,
   adminCriarPecasPro,
@@ -208,6 +211,55 @@ function downloadText(
   URL.revokeObjectURL(url);
 }
 
+
+function safeFilename(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toUpperCase();
+}
+
+function fitTextSize(
+  doc,
+  text,
+  maxWidth,
+  initialSize = 8,
+  minSize = 5.5
+) {
+  let size = initialSize;
+
+  doc.setFontSize(size);
+
+  while (
+    size > minSize &&
+    doc.getTextWidth(String(text || "")) > maxWidth
+  ) {
+    size -= 0.25;
+    doc.setFontSize(size);
+  }
+
+  return size;
+}
+
+async function createQrDataUrl(
+  value
+) {
+  return QRCode.toDataURL(
+    String(value || ""),
+    {
+      errorCorrectionLevel: "H",
+      margin: 2,
+      width: 1200,
+      color: {
+        dark: "#000000",
+        light: "#FFFFFF",
+      },
+    }
+  );
+}
+
 export default function AdminPro() {
   const [pecas, setPecas] =
     useState([]);
@@ -229,6 +281,12 @@ export default function AdminPro() {
 
   const [limpandoId, setLimpandoId] =
     useState(null);
+
+  const [selecionadas, setSelecionadas] =
+    useState([]);
+
+  const [gerandoA4, setGerandoA4] =
+    useState(false);
 
   const [erro, setErro] =
     useState("");
@@ -920,6 +978,389 @@ export default function AdminPro() {
   }
 
 
+  function pecaSelecionada(pieceId) {
+    return selecionadas.includes(
+      pieceId
+    );
+  }
+
+  function alternarSelecao(pieceId) {
+    setSelecionadas((current) =>
+      current.includes(pieceId)
+        ? current.filter(
+            (id) => id !== pieceId
+          )
+        : [...current, pieceId]
+    );
+  }
+
+  function selecionarVisiveis() {
+    const visibleIds =
+      filteredPieces.map(
+        (piece) => piece.id
+      );
+
+    setSelecionadas((current) =>
+      Array.from(
+        new Set([
+          ...current,
+          ...visibleIds,
+        ])
+      )
+    );
+  }
+
+  function limparSelecao() {
+    setSelecionadas([]);
+  }
+
+  async function gerarPdfA4QrCode() {
+    const selectedPieces =
+      pecas.filter((piece) =>
+        selecionadas.includes(
+          piece.id
+        )
+      );
+
+    if (!selectedPieces.length) {
+      setErro(
+        "Selecione pelo menos uma peça para gerar o PDF A4."
+      );
+      return;
+    }
+
+    setGerandoA4(true);
+    setErro("");
+    setSucesso(
+      "Preparando os QR Codes do PDF..."
+    );
+
+    try {
+      const prepared =
+        await Promise.all(
+          selectedPieces.map(
+            async (piece) => {
+              const access =
+                acessos[piece.id] ||
+                await obterAcesso(
+                  piece
+                );
+
+              const accessCode =
+                clean(
+                  access?.access_code
+                );
+
+              if (!accessCode) {
+                throw new Error(
+                  `Código administrativo não encontrado para a peça ${piece.code}.`
+                );
+              }
+
+              const publicUrl =
+                publicPieceLink(
+                  piece,
+                  access
+                );
+
+              const controlUrl =
+                controlCardLink(
+                  piece
+                );
+
+              const [
+                qrTotem,
+                qrCartao,
+              ] =
+                await Promise.all([
+                  createQrDataUrl(
+                    publicUrl
+                  ),
+                  createQrDataUrl(
+                    controlUrl
+                  ),
+                ]);
+
+              return {
+                piece,
+                accessCode,
+                qrTotem,
+                qrCartao,
+              };
+            }
+          )
+        );
+
+      /*
+       * Medidas em milímetros.
+       * Papel A4: 210 × 297 mm.
+       * Grade: 3 colunas × 4 linhas = 12 peças.
+       */
+      const doc =
+        new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+
+      const columns = 3;
+      const rows = 4;
+      const itemsPerPage =
+        columns * rows;
+
+      const pageMarginX = 12;
+      const pageTop = 18;
+      const pageBottom = 12;
+
+      const pairWidth = 56;
+      const contentWidth =
+        pageWidth -
+        pageMarginX * 2;
+
+      const columnGap =
+        (
+          contentWidth -
+          pairWidth * columns
+        ) /
+        (columns - 1);
+
+      const rowPitch =
+        (
+          pageHeight -
+          pageTop -
+          pageBottom
+        ) /
+        rows;
+
+      const titleHeight = 5;
+      const qrBox = 27;
+      const qrImage = 22;
+      const qrInset =
+        (qrBox - qrImage) / 2;
+      const labelGap = 2;
+      const codeHeight = 10;
+      const labelGapX = 2;
+
+      function drawCutBox(
+        x,
+        y,
+        width,
+        height
+      ) {
+        doc.setDrawColor(60);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern(
+          [1.2, 1],
+          0
+        );
+        doc.rect(
+          x,
+          y,
+          width,
+          height
+        );
+        doc.setLineDashPattern(
+          [],
+          0
+        );
+      }
+
+      function drawLabel({
+        x,
+        y,
+        title,
+        qrData,
+        code,
+        combined = false,
+      }) {
+        doc.setTextColor(0);
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+        doc.setFontSize(7);
+        doc.text(
+          title,
+          x + qrBox / 2,
+          y + 3.2,
+          {
+            align: "center",
+          }
+        );
+
+        const qrY =
+          y + titleHeight;
+
+        const codeY =
+          qrY +
+          qrBox +
+          labelGap;
+
+        if (combined) {
+          drawCutBox(
+            x,
+            qrY,
+            qrBox,
+            qrBox +
+              labelGap +
+              codeHeight
+          );
+        } else {
+          drawCutBox(
+            x,
+            qrY,
+            qrBox,
+            qrBox
+          );
+
+          drawCutBox(
+            x,
+            codeY,
+            qrBox,
+            codeHeight
+          );
+        }
+
+        doc.addImage(
+          qrData,
+          "PNG",
+          x + qrInset,
+          qrY + qrInset,
+          qrImage,
+          qrImage,
+          undefined,
+          "FAST"
+        );
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+
+        fitTextSize(
+          doc,
+          code,
+          qrBox - 2.4,
+          7.5,
+          5.5
+        );
+
+        doc.text(
+          String(code || ""),
+          x + qrBox / 2,
+          codeY +
+            codeHeight / 2 +
+            1.1,
+          {
+            align: "center",
+          }
+        );
+      }
+
+      prepared.forEach(
+        (item, index) => {
+          if (
+            index > 0 &&
+            index % itemsPerPage === 0
+          ) {
+            doc.addPage();
+          }
+
+          const pageIndex =
+            index % itemsPerPage;
+
+          const column =
+            pageIndex % columns;
+
+          const row =
+            Math.floor(
+              pageIndex / columns
+            );
+
+          const x =
+            pageMarginX +
+            column *
+              (
+                pairWidth +
+                columnGap
+              );
+
+          const y =
+            pageTop +
+            row * rowPitch;
+
+          drawLabel({
+            x,
+            y,
+            title: "QR Totem",
+            qrData:
+              item.qrTotem,
+            code:
+              item.piece.code,
+          });
+
+          drawLabel({
+            x:
+              x +
+              qrBox +
+              labelGapX,
+            y,
+            title: "QR Cartão",
+            qrData:
+              item.qrCartao,
+            code:
+              item.accessCode,
+            combined: true,
+          });
+        }
+      );
+
+      const labels =
+        Array.from(
+          new Set(
+            selectedPieces
+              .map((piece) =>
+                clean(
+                  piece.internal_label
+                )
+              )
+              .filter(Boolean)
+          )
+        );
+
+      const suffix =
+        labels.length === 1
+          ? safeFilename(
+              labels[0]
+            )
+          : new Date()
+              .toISOString()
+              .slice(0, 10);
+
+      doc.save(
+        `TAP-PRO-QR-A4-${suffix || "LOTE"}.pdf`
+      );
+
+      setSucesso(
+        `${prepared.length} peça(s) organizadas em PDF A4.`
+      );
+    } catch (error) {
+      console.error(error);
+
+      setErro(
+        error?.message ||
+          "Não foi possível gerar o PDF A4 com os QR Codes."
+      );
+    } finally {
+      setGerandoA4(false);
+    }
+  }
+
+
   async function exportCsv() {
     setErro("");
     setSucesso("");
@@ -1146,6 +1587,25 @@ export default function AdminPro() {
             box-shadow: 0 30px 80px rgba(0,0,0,0.28);
           }
 
+          .admin-pro-production-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+          }
+
+          .admin-pro-select-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #111827;
+            cursor: pointer;
+          }
+
           .admin-pro-mobile-list {
             display: none;
           }
@@ -1220,6 +1680,15 @@ export default function AdminPro() {
               width: auto;
               min-width: 0;
               box-shadow: none;
+            }
+
+            .admin-pro-production-toolbar {
+              display: grid;
+              grid-template-columns: 1fr;
+            }
+
+            .admin-pro-production-toolbar button {
+              width: 100%;
             }
           }
         `}
@@ -1823,6 +2292,71 @@ export default function AdminPro() {
             }}
           />
 
+          <div className="admin-pro-production-toolbar">
+            <strong
+              style={{
+                marginRight: "auto",
+              }}
+            >
+              {selecionadas.length} peça(s) selecionada(s)
+            </strong>
+
+            <button
+              type="button"
+              onClick={selecionarVisiveis}
+              disabled={
+                !filteredPieces.length
+              }
+              style={{
+                ...miniButton,
+                background: "#ffffff",
+              }}
+            >
+              Selecionar visíveis
+            </button>
+
+            <button
+              type="button"
+              onClick={limparSelecao}
+              disabled={
+                !selecionadas.length
+              }
+              style={{
+                ...miniButton,
+                background: "#ffffff",
+              }}
+            >
+              Limpar seleção
+            </button>
+
+            <button
+              type="button"
+              onClick={gerarPdfA4QrCode}
+              disabled={
+                !selecionadas.length ||
+                gerandoA4
+              }
+              style={{
+                ...buttonStyle,
+                background:
+                  selecionadas.length &&
+                  !gerandoA4
+                    ? "#111827"
+                    : "#9ca3af",
+                color: "#ffffff",
+                cursor:
+                  selecionadas.length &&
+                  !gerandoA4
+                    ? "pointer"
+                    : "not-allowed",
+              }}
+            >
+              {gerandoA4
+                ? "Gerando PDF..."
+                : "A4 QR Code"}
+            </button>
+          </div>
+
           {loading ? (
             <p>
               Carregando peças...
@@ -1837,13 +2371,14 @@ export default function AdminPro() {
               <table
                 style={{
                   width: "100%",
-                  minWidth: "1480px",
+                  minWidth: "1560px",
                   borderCollapse: "collapse",
                 }}
               >
                 <thead>
                   <tr>
                     {[
+                      "Selecionar",
                       "Código físico",
                       "Código admin",
                       "Produto",
@@ -1865,7 +2400,14 @@ export default function AdminPro() {
                         }
                         style={{
                           padding: "12px",
-                          textAlign: "left",
+                          textAlign:
+                            title === "Selecionar"
+                              ? "center"
+                              : "left",
+                          width:
+                            title === "Selecionar"
+                              ? "76px"
+                              : undefined,
                           fontSize: "13px",
                           background: "#f9fafb",
                           borderBottom:
@@ -1888,6 +2430,27 @@ export default function AdminPro() {
                         <tr
                           key={piece.id}
                         >
+                          <td
+                            style={{
+                              ...tdStyle,
+                              textAlign: "center",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              className="admin-pro-select-checkbox"
+                              checked={pecaSelecionada(
+                                piece.id
+                              )}
+                              onChange={() =>
+                                alternarSelecao(
+                                  piece.id
+                                )
+                              }
+                              aria-label={`Selecionar peça ${piece.code}`}
+                            />
+                          </td>
+
                           <td style={tdStyle}>
                             <strong>
                               {piece.code}
@@ -2165,7 +2728,32 @@ export default function AdminPro() {
                           gap: "12px",
                         }}
                       >
-                        <div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "10px",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            className="admin-pro-select-checkbox"
+                            checked={pecaSelecionada(
+                              piece.id
+                            )}
+                            onChange={() =>
+                              alternarSelecao(
+                                piece.id
+                              )
+                            }
+                            aria-label={`Selecionar peça ${piece.code}`}
+                            style={{
+                              marginTop: "3px",
+                              flexShrink: 0,
+                            }}
+                          />
+
+                          <div>
                           <small
                             style={{
                               display: "block",
@@ -2187,6 +2775,7 @@ export default function AdminPro() {
                           >
                             {piece.code}
                           </strong>
+                          </div>
                         </div>
 
                         <span
