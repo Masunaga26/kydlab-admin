@@ -288,6 +288,9 @@ export default function AdminPro() {
   const [gerandoA4, setGerandoA4] =
     useState(false);
 
+  const [gerandoA3Pessoa, setGerandoA3Pessoa] =
+    useState(false);
+
   const [erro, setErro] =
     useState("");
 
@@ -1296,7 +1299,7 @@ export default function AdminPro() {
           drawLabel({
             x,
             y,
-            title: "QR Totem",
+            title: "QR Peça",
             qrData:
               item.qrTotem,
             code:
@@ -1357,6 +1360,389 @@ export default function AdminPro() {
       );
     } finally {
       setGerandoA4(false);
+    }
+  }
+
+
+  async function gerarProducaoA3Pessoa() {
+    const confirmou =
+      window.confirm(
+        "Gerar 56 novas peças TAP PRO Pessoa em ambiente de produção e baixar o PDF A3?\n\nProduto: Tag\nPerfil: Profissional\nIdentificação: Produção\nCampanha: Produção\nResponsável: Fábio"
+      );
+
+    if (!confirmou) {
+      return;
+    }
+
+    setGerandoA3Pessoa(true);
+    setErro("");
+    setSucesso("");
+    setGeradas([]);
+
+    try {
+      const { data, error } =
+        await adminCriarPecasPro({
+          productType: "tag",
+          predefinedProfileType:
+            "professional",
+          codeCount: 56,
+          physicalQuantity: 1,
+          internalLabel: "Produção",
+          campaignName: "Produção",
+          sellerName: "Fábio",
+          notes: buildNotes(
+            "production",
+            ""
+          ),
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const created = data || [];
+
+      if (created.length !== 56) {
+        throw new Error(
+          `A criação retornou ${created.length} peça(s), mas eram esperadas 56. O PDF não foi gerado para evitar uma folha incompleta.`
+        );
+      }
+
+      setGeradas(created);
+      setSucesso(
+        "56 peças criadas. Preparando os acessos e o PDF A3..."
+      );
+
+      const accessResults =
+        await Promise.all(
+          created.map(
+            async (piece) => {
+              const {
+                data: access,
+                error: accessError,
+              } =
+                await adminObterAcessoPecaPro(
+                  piece.id
+                );
+
+              if (
+                accessError ||
+                !access?.found ||
+                !clean(
+                  access?.access_code
+                )
+              ) {
+                throw new Error(
+                  `Código administrativo não encontrado para a peça ${piece.code}.`
+                );
+              }
+
+              return {
+                piece,
+                access,
+              };
+            }
+          )
+        );
+
+      const accessMap = {};
+
+      accessResults.forEach(
+        ({ piece, access }) => {
+          accessMap[piece.id] =
+            access;
+        }
+      );
+
+      setAcessos((current) => ({
+        ...current,
+        ...accessMap,
+      }));
+
+      const prepared =
+        await Promise.all(
+          accessResults.map(
+            async ({
+              piece,
+              access,
+            }) => {
+              const publicUrl =
+                publicPieceLink(
+                  piece,
+                  access
+                );
+
+              const controlUrl =
+                controlCardLink(
+                  piece
+                );
+
+              const [
+                qrPiece,
+                qrCard,
+              ] =
+                await Promise.all([
+                  createQrDataUrl(
+                    publicUrl
+                  ),
+                  createQrDataUrl(
+                    controlUrl
+                  ),
+                ]);
+
+              return {
+                piece,
+                accessCode:
+                  clean(
+                    access.access_code
+                  ),
+                qrPiece,
+                qrCard,
+              };
+            }
+          )
+        );
+
+      /*
+       * A3 horizontal: 420 × 297 mm.
+       * Cada conjunto: 50 × 38 mm.
+       * Grade: 8 colunas × 7 linhas = 56 peças.
+       * Área ocupada: 400 × 266 mm.
+       * Margens: 10 mm laterais e 15,5 mm superior/inferior.
+       */
+      const doc =
+        new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a3",
+          compress: true,
+        });
+
+      const pageWidth = 420;
+      const pageHeight = 297;
+
+      const columns = 8;
+      const rows = 7;
+
+      const blockWidth = 50;
+      const blockHeight = 38;
+
+      const leftWidth = 23;
+      const rightWidth = 27;
+
+      const leftQrAreaHeight = 15;
+      const rightQrAreaHeight = 25;
+
+      const pieceQrSize = 10;
+      const cardQrSize = 20;
+
+      const marginX =
+        (
+          pageWidth -
+          columns * blockWidth
+        ) / 2;
+
+      const marginY =
+        (
+          pageHeight -
+          rows * blockHeight
+        ) / 2;
+
+      function drawProductionBlock(
+        item,
+        index
+      ) {
+        const column =
+          index % columns;
+
+        const row =
+          Math.floor(
+            index / columns
+          );
+
+        const x =
+          marginX +
+          column * blockWidth;
+
+        const y =
+          marginY +
+          row * blockHeight;
+
+        doc.setDrawColor(35);
+        doc.setLineWidth(0.18);
+
+        doc.rect(
+          x,
+          y,
+          blockWidth,
+          blockHeight
+        );
+
+        doc.line(
+          x + leftWidth,
+          y,
+          x + leftWidth,
+          y + blockHeight
+        );
+
+        doc.line(
+          x,
+          y + leftQrAreaHeight,
+          x + leftWidth,
+          y + leftQrAreaHeight
+        );
+
+        doc.line(
+          x + leftWidth,
+          y + rightQrAreaHeight,
+          x + blockWidth,
+          y + rightQrAreaHeight
+        );
+
+        const pieceQrX =
+          x +
+          (
+            leftWidth -
+            pieceQrSize
+          ) / 2;
+
+        const pieceQrY =
+          y +
+          (
+            leftQrAreaHeight -
+            pieceQrSize
+          ) / 2;
+
+        const cardQrX =
+          x +
+          leftWidth +
+          (
+            rightWidth -
+            cardQrSize
+          ) / 2;
+
+        const cardQrY =
+          y +
+          (
+            rightQrAreaHeight -
+            cardQrSize
+          ) / 2;
+
+        doc.addImage(
+          item.qrPiece,
+          "PNG",
+          pieceQrX,
+          pieceQrY,
+          pieceQrSize,
+          pieceQrSize,
+          undefined,
+          "FAST"
+        );
+
+        doc.addImage(
+          item.qrCard,
+          "PNG",
+          cardQrX,
+          cardQrY,
+          cardQrSize,
+          cardQrSize,
+          undefined,
+          "FAST"
+        );
+
+        doc.setTextColor(0);
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+
+        fitTextSize(
+          doc,
+          item.piece.code,
+          leftWidth - 2,
+          6.2,
+          4.5
+        );
+
+        doc.text(
+          String(
+            item.piece.code ||
+            ""
+          ),
+          x + leftWidth / 2,
+          y +
+            leftQrAreaHeight +
+            (
+              blockHeight -
+              leftQrAreaHeight
+            ) / 2 +
+            1.2,
+          {
+            align: "center",
+          }
+        );
+
+        fitTextSize(
+          doc,
+          item.accessCode,
+          rightWidth - 2,
+          8.5,
+          6
+        );
+
+        doc.text(
+          String(
+            item.accessCode ||
+            ""
+          ),
+          x +
+            leftWidth +
+            rightWidth / 2,
+          y +
+            rightQrAreaHeight +
+            (
+              blockHeight -
+              rightQrAreaHeight
+            ) / 2 +
+            1.4,
+          {
+            align: "center",
+          }
+        );
+      }
+
+      prepared.forEach(
+        drawProductionBlock
+      );
+
+      const date =
+        new Date()
+          .toISOString()
+          .slice(0, 10);
+
+      doc.save(
+        `TAP-PRO-PESSOA-PRODUCAO-A3-${date}.pdf`
+      );
+
+      setSucesso(
+        "56 peças TAP PRO Pessoa criadas e PDF A3 baixado com sucesso."
+      );
+
+      await carregarPecas();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    } catch (error) {
+      console.error(error);
+
+      setErro(
+        error?.message ||
+          "Não foi possível criar a produção A3 do TAP PRO Pessoa."
+      );
+    } finally {
+      setGerandoA3Pessoa(false);
     }
   }
 
@@ -1544,8 +1930,8 @@ export default function AdminPro() {
           .admin-pro-actions-cell {
             position: sticky;
             right: 0;
-            min-width: 390px;
-            width: 390px;
+            min-width: 330px;
+            width: 330px;
             background: #ffffff;
             box-shadow: -10px 0 18px rgba(17,24,39,0.06);
             z-index: 2;
@@ -1558,13 +1944,15 @@ export default function AdminPro() {
 
           .admin-pro-actions-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 7px;
           }
 
           .admin-pro-actions-grid button {
             width: 100%;
-            white-space: nowrap;
+            min-height: 42px;
+            white-space: normal;
+            line-height: 1.15;
           }
 
           .admin-pro-modal-backdrop {
@@ -1650,13 +2038,19 @@ export default function AdminPro() {
 
           .admin-pro-mobile-actions {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
           }
 
           .admin-pro-mobile-actions button {
             width: 100%;
             min-height: 42px;
+          }
+
+          @media (max-width: 480px) {
+            .admin-pro-mobile-actions {
+              grid-template-columns: 1fr;
+            }
           }
 
           @media (max-width: 840px) {
@@ -1913,7 +2307,7 @@ export default function AdminPro() {
                             "1px solid #bbf7d0",
                         }}
                       >
-                        Copiar link do Totem
+                        Copiar link da peça
                       </button>
 
                       <button
@@ -1949,7 +2343,7 @@ export default function AdminPro() {
                           color: "#ffffff",
                         }}
                       >
-                        Baixar QR do Totem
+                        Baixar QR da peça
                       </button>
 
                       <button
@@ -1998,6 +2392,72 @@ export default function AdminPro() {
           >
             Cada cadastro gera dois acessos vinculados: a peça pública e o cartão-controle privado do cliente.
           </p>
+
+          <div
+            style={{
+              marginBottom: "22px",
+              padding: "16px",
+              borderRadius: "16px",
+              border: "1px solid #e6d7b8",
+              background: "#fffaf0",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: "16px",
+                  }}
+                >
+                  Produção rápida — TAP PRO Pessoa
+                </strong>
+
+                <span
+                  style={{
+                    display: "block",
+                    marginTop: "5px",
+                    color: "#6b7280",
+                    fontSize: "13px",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Cria 56 tags profissionais em produção e baixa o PDF A3 com QR da peça, QR do Cartão-Controle e os respectivos códigos.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={gerarProducaoA3Pessoa}
+                disabled={gerandoA3Pessoa}
+                style={{
+                  ...buttonStyle,
+                  minWidth: "250px",
+                  background:
+                    gerandoA3Pessoa
+                      ? "#9ca3af"
+                      : "#b8892f",
+                  color: "#ffffff",
+                  cursor:
+                    gerandoA3Pessoa
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {gerandoA3Pessoa
+                  ? "Criando 56 peças..."
+                  : "Gerar 56 peças + baixar A3"}
+              </button>
+            </div>
+          </div>
 
           <form
             onSubmit={handleCriar}
@@ -2371,7 +2831,7 @@ export default function AdminPro() {
               <table
                 style={{
                   width: "100%",
-                  minWidth: "1560px",
+                  minWidth: "1460px",
                   borderCollapse: "collapse",
                 }}
               >
@@ -2583,7 +3043,7 @@ export default function AdminPro() {
                                     "1px solid #bbf7d0",
                                 }}
                               >
-                                Copiar link do Totem
+                                Copiar link da peça
                               </button>
 
                               <button
@@ -2625,7 +3085,7 @@ export default function AdminPro() {
                                     "1px solid #111827",
                                 }}
                               >
-                                Baixar QR do Totem
+                                Baixar QR da peça
                               </button>
 
                               <button
@@ -2882,7 +3342,7 @@ export default function AdminPro() {
                               "1px solid #111827",
                           }}
                         >
-                          Baixar QR do Totem
+                          Baixar QR da peça
                         </button>
 
                         <button
@@ -2919,7 +3379,7 @@ export default function AdminPro() {
                               "1px solid #bbf7d0",
                           }}
                         >
-                          Copiar link do Totem
+                          Copiar link da peça
                         </button>
 
                         <button
