@@ -270,13 +270,6 @@ export default function ProProfissionalCadastro() {
         );
       }
 
-      if (prev.length >= 3) {
-        setError(
-          "Você já escolheu 3 destaques."
-        );
-        return prev;
-      }
-
       return [...prev, code];
     });
   }
@@ -429,15 +422,11 @@ export default function ProProfissionalCadastro() {
             grid-template-columns:1fr 1fr;
             gap:16px;
           }
-          .pro-modules {
-            display:grid;
-            grid-template-columns:1fr 1fr;
-            gap:12px;
-          }
+          .pro-actions {columns:2 360px;column-gap:14px;}
+          .pro-action-card{break-inside:avoid;margin:0 0 14px;width:100%;display:inline-block;box-sizing:border-box;}
           @media(max-width:680px){
-            .pro-grid,.pro-modules{
-              grid-template-columns:1fr;
-            }
+            .pro-grid{grid-template-columns:1fr;}
+            .pro-actions{columns:1;}
           }
         `}
       </style>
@@ -484,7 +473,7 @@ export default function ProProfissionalCadastro() {
               lineHeight: 1.5,
             }}
           >
-            WhatsApp, Salvar contato e Compartilhar já estão incluídos. Escolha até 3 outros destaques.
+            WhatsApp, Salvar contato e Compartilhar já estão incluídos. Preencha seus canais e destaque livremente os mais importantes.
           </p>
         </header>
 
@@ -633,163 +622,56 @@ export default function ProProfissionalCadastro() {
           </section>
 
           <section style={card}>
-            <h2>
-              2. Escolha até 3 destaques
-            </h2>
-
-            <p
-              style={{
-                color: "#6b7280",
-              }}
-            >
-              Escolhidos: {top3.length}/3 · Restam {3 - top3.length}
+            <h2>2. Ações e destaques</h2>
+            <p style={{color:"#6b7280",lineHeight:1.5}}>
+              Preencha os canais que utiliza e escolha livremente quais terão mais destaque.
             </p>
 
-            <div className="pro-modules">
-              {MODULES.map(
-                ([code, name, desc]) => {
-                  const selected =
-                    top3.includes(code);
-
-                  const position =
-                    top3.indexOf(code) + 1;
-
-                  return (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() =>
-                        toggle(code)
-                      }
-                      style={{
-                        padding: 15,
-                        borderRadius: 14,
-                        border: selected
-                          ? "2px solid #b8892f"
-                          : "1px solid #d1d5db",
-                        background: selected
-                          ? "#fffaf0"
-                          : "#ffffff",
-                        color: "#111827",
-                        textAlign: "left",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <strong>{name}</strong>
-                      {selected && (
-                        <span
-                          style={{
-                            float: "right",
-                            width: 28,
-                            height: 28,
-                            borderRadius: "50%",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: "#b8892f",
-                            color: "#ffffff",
-                          }}
-                        >
-                          {position}
-                        </span>
-                      )}
-                      <p
-                        style={{
-                          margin: "7px 0 0",
-                          color: "#6b7280",
-                          fontSize: 13,
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {desc}
-                      </p>
-                    </button>
-                  );
-                }
-              )}
+            <div className="pro-actions">
+              {[
+                ["instagram","Instagram","instagram","Usuário ou link","@seuperfil ou instagram.com/seuperfil"],
+                ["facebook","Facebook","facebook","Página ou perfil","facebook.com/seuperfil"],
+                ["linkedin","LinkedIn","linkedin","Perfil profissional","linkedin.com/in/seuperfil"],
+                ["website","Site","website","Link do site","seusite.com.br"],
+                ["portfolio","Portfólio","portfolio_url","Link do portfólio","Link dos seus trabalhos"],
+                ["scheduling","Agendamento","scheduling_url","Link de agendamento","Cole o link de agendamento"],
+                ["maps","Localização","maps_url","Google Maps","Cole o link da localização"],
+                ["company_page","Conheça a empresa","company_page_url","Página da empresa","Cole o link da empresa"],
+                ["email","E-mail","email","E-mail profissional","contato@empresa.com.br"],
+                ["phone","Telefone","phone","Telefone","Telefone com DDD"],
+              ].map(([code,title,name,label,placeholder])=>(
+                <CadastroActionCard
+                  key={code}
+                  title={title}
+                  code={code}
+                  value={form[name]}
+                  top3={top3}
+                  onToggleHighlight={toggle}
+                >
+                  <Field
+                    label={label}
+                    name={name}
+                    value={form[name] || ""}
+                    onChange={change}
+                    placeholder={placeholder}
+                    type={name==="email" ? "email" : "text"}
+                  />
+                </CadastroActionCard>
+              ))}
             </div>
 
-            {top3.length > 0 && (
-              <ol>
-                {topNames.map(
-                  (name) => (
-                    <li key={name}>
-                      {name}
-                    </li>
-                  )
-                )}
-              </ol>
+            {topNames.length > 0 && (
+              <div style={{marginTop:15,padding:14,borderRadius:14,background:"#f8fafc",border:"1px solid #e2e8f0"}}>
+                <strong style={{display:"block",marginBottom:8}}>Ordem na página</strong>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {topNames.map((name,index)=>(
+                    <span key={`${name}-${index}`} style={{padding:"7px 10px",borderRadius:999,background:"#fff",border:"1px solid #d1d5db",fontSize:12,fontWeight:800,color:"#475569"}}>
+                      {index+1}. {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
-          </section>
-
-          <section style={card}>
-            <h2>
-              3. Dados dos destaques
-            </h2>
-
-            <div className="pro-grid">
-              <Field
-                label="Instagram"
-                name="instagram"
-                value={form.instagram}
-                onChange={change}
-              />
-              <Field
-                label="Facebook"
-                name="facebook"
-                value={form.facebook}
-                onChange={change}
-              />
-              <Field
-                label="LinkedIn"
-                name="linkedin"
-                value={form.linkedin}
-                onChange={change}
-              />
-              <Field
-                label="Site"
-                name="website"
-                value={form.website}
-                onChange={change}
-              />
-              <Field
-                label="Portfólio"
-                name="portfolio_url"
-                value={form.portfolio_url}
-                onChange={change}
-              />
-              <Field
-                label="Agendamento"
-                name="scheduling_url"
-                value={form.scheduling_url}
-                onChange={change}
-              />
-              <Field
-                label="Página da empresa"
-                name="company_page_url"
-                value={form.company_page_url}
-                onChange={change}
-              />
-              <Field
-                label="E-mail"
-                name="email"
-                value={form.email}
-                onChange={change}
-                type="email"
-              />
-              <Field
-                label="Telefone"
-                name="phone"
-                value={form.phone}
-                onChange={change}
-              />
-              <Field
-                label="Google Maps"
-                name="maps_url"
-                value={form.maps_url}
-                onChange={change}
-              />
-            </div>
           </section>
 
           <section
@@ -826,6 +708,30 @@ export default function ProProfissionalCadastro() {
         </form>
       </section>
     </main>
+  );
+}
+
+
+function CadastroActionCard({title,code,value,top3,onToggleHighlight,children}) {
+  const position=top3.indexOf(code);
+  const highlighted=position>=0;
+  const filled=Boolean(String(value||"").trim());
+
+  return (
+    <section className="pro-action-card" style={{padding:16,borderRadius:17,border:highlighted?"2px solid #b8892f":filled?"1px solid #d6b56c":"1px solid #e5e7eb",background:filled?"#fffdf7":"#fff",boxSizing:"border-box"}}>
+      <strong style={{display:"block",fontSize:15}}>{title}</strong>
+      <small style={{display:"block",marginTop:4,color:"#64748b"}}>{filled?"Função disponível":"Cole o link ou preencha o dado"}</small>
+      <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #ece7dc"}}>{children}</div>
+      <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #ece7dc",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div>
+          <strong style={{display:"block",fontSize:13.5}}>{highlighted?`Destaque ${position+1}`:"Adicionar aos destaques"}</strong>
+          <small style={{display:"block",marginTop:3,color:"#64748b"}}>{highlighted?"Esta ação aparece entre as principais.":filled?"Esta ação ganhará mais visibilidade.":"Preencha o campo para liberar."}</small>
+        </div>
+        <button type="button" onClick={()=>onToggleHighlight(code)} disabled={!filled&&!highlighted} style={{minWidth:112,minHeight:40,padding:"0 14px",borderRadius:11,border:highlighted?"1px solid #b8892f":"1px solid #d1d5db",background:highlighted?"#fff3d6":"#fff",color:!filled&&!highlighted?"#9ca3af":"#7c5718",fontWeight:850,cursor:!filled&&!highlighted?"not-allowed":"pointer"}}>
+          {highlighted?"Remover":"Adicionar"}
+        </button>
+      </div>
+    </section>
   );
 }
 

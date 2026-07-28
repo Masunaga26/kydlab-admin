@@ -251,7 +251,6 @@ export default function ProProfissionalPainel() {
           .sort((a, b) => a.featured_position - b.featured_position)
           .map((item) => item.module_code)
           .filter((code) => ALLOWED_MODULE_CODES.has(code))
-          .slice(0, 3)
       );
 
       setPhotoPreview(loadedData.photo_url || "");
@@ -283,11 +282,6 @@ export default function ProProfissionalPainel() {
     setTop3((prev) => {
       if (prev.includes(code)) {
         return prev.filter((item) => item !== code);
-      }
-
-      if (prev.length >= 3) {
-        setError("Você já escolheu 3 destaques.");
-        return prev;
       }
 
       return [...prev, code];
@@ -503,11 +497,14 @@ export default function ProProfissionalPainel() {
 
       <style>{`
         .pro-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .pro-modules{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .pro-actions{columns:2 360px;column-gap:14px}
+        .pro-action-card{break-inside:avoid;margin:0 0 14px;width:100%;display:inline-block;box-sizing:border-box}
         .pro-goals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
         .pro-topbar{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
         @media(max-width:760px){
-          .pro-grid,.pro-modules,.pro-goals{grid-template-columns:1fr}
+          .pro-grid,.pro-goals{grid-template-columns:1fr}
+          .pro-actions{columns:1}
+          .pro-action-card{margin-bottom:10px;padding:13px!important;border-radius:15px!important}
           .pro-topbar{grid-template-columns:1fr}
           form{padding-left:16px!important;padding-right:16px!important}
           section>div[style*="grid-template-columns: 1fr auto"]{
@@ -1013,157 +1010,176 @@ export default function ProProfissionalPainel() {
 
           <section style={section}>
             <SectionTitle
-              kicker="3. Destaques"
-              title="Escolha os principais acessos"
-              description="Marque até 3 opções para aparecerem com mais destaque."
-              aside={`${top3.length}/3 destaques`}
+              kicker="3. Ações e destaques"
+              title="Escolha o que o visitante pode fazer"
+              description="Preencha os canais que utiliza e escolha livremente quais terão destaque principal."
+              aside={`${top3.length} ${top3.length===1?"destaque":"destaques"}`}
             />
 
-            <div className="pro-modules">
-              {MODULES.map(([code, name]) => {
-                const selected = top3.includes(code);
-                const position = top3.indexOf(code) + 1;
+            <div className="pro-actions">
+              <ProfessionalActionCard
+                title="Instagram"
+                code="instagram"
+                value={form.instagram}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Usuário ou link"
+                  name="instagram"
+                  value={form.instagram}
+                  onChange={change}
+                  placeholder="@seuperfil ou instagram.com/seuperfil"
+                />
+              </ProfessionalActionCard>
 
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => toggle(code)}
-                    style={{
-                      minHeight: 54,
-                      padding: "11px 13px",
-                      borderRadius: 13,
-                      border: selected
-                        ? "2px solid #b8892f"
-                        : "1px solid #d1d5db",
-                      background: selected ? "#fffaf0" : "#ffffff",
-                      color: "#111827",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      textAlign: "left",
-                      fontWeight: 800,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span>{name}</span>
+              <ProfessionalActionCard
+                title="Facebook"
+                code="facebook"
+                value={form.facebook}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Página ou perfil"
+                  name="facebook"
+                  value={form.facebook}
+                  onChange={change}
+                  placeholder="facebook.com/seuperfil"
+                />
+              </ProfessionalActionCard>
 
-                    {selected ? (
-                      <span
-                        style={{
-                          width: 29,
-                          height: 29,
-                          borderRadius: "50%",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "#b8892f",
-                          color: "#ffffff",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {position}
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          width: 29,
-                          height: 29,
-                          borderRadius: "50%",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "#f3f4f6",
-                          color: "#9ca3af",
-                          flexShrink: 0,
-                        }}
-                      >
-                        +
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              <ProfessionalActionCard
+                title="LinkedIn"
+                code="linkedin"
+                value={form.linkedin}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Perfil profissional"
+                  name="linkedin"
+                  value={form.linkedin}
+                  onChange={change}
+                  placeholder="linkedin.com/in/seuperfil"
+                />
+              </ProfessionalActionCard>
+
+              <ProfessionalActionCard
+                title="Site"
+                code="website"
+                value={form.website}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Link do site"
+                  name="website"
+                  value={form.website}
+                  onChange={change}
+                  placeholder="seusite.com.br"
+                />
+              </ProfessionalActionCard>
+
+              <ProfessionalActionCard
+                title="Portfólio"
+                code="portfolio"
+                value={form.portfolio_url}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Link do portfólio"
+                  name="portfolio_url"
+                  value={form.portfolio_url}
+                  onChange={change}
+                  placeholder="Link dos seus trabalhos"
+                />
+              </ProfessionalActionCard>
+
+              <ProfessionalActionCard
+                title="Localização"
+                code="maps"
+                value={form.maps_url}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Link do Google Maps"
+                  name="maps_url"
+                  value={form.maps_url}
+                  onChange={change}
+                  placeholder="Cole o link da localização"
+                />
+              </ProfessionalActionCard>
+
+              <ProfessionalActionCard
+                title="E-mail"
+                code="email"
+                value={form.email}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="E-mail profissional"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={change}
+                  placeholder="contato@empresa.com.br"
+                />
+              </ProfessionalActionCard>
+
+              <ProfessionalActionCard
+                title="Telefone"
+                code="phone"
+                value={form.phone}
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                <Field
+                  label="Telefone"
+                  name="phone"
+                  value={form.phone}
+                  onChange={change}
+                  placeholder="Telefone com DDD"
+                />
+              </ProfessionalActionCard>
             </div>
 
             {topNames.length > 0 && (
               <div
                 style={{
-                  marginTop: 15,
-                  padding: 14,
-                  borderRadius: 14,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
+                  marginTop:15,
+                  padding:14,
+                  borderRadius:14,
+                  background:"#f8fafc",
+                  border:"1px solid #e2e8f0",
                 }}
               >
-                <strong
-                  style={{
-                    display: "block",
-                    marginBottom: 8,
-                    fontSize: 13,
-                  }}
-                >
+                <strong style={{display:"block",marginBottom:8,fontSize:13}}>
                   Ordem na página
                 </strong>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  {topNames.map((name, index) => (
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {topNames.map((name,index)=>(
                     <span
                       key={`${name}-${index}`}
                       style={{
-                        padding: "7px 10px",
-                        borderRadius: 999,
-                        background: "#ffffff",
-                        border: "1px solid #d1d5db",
-                        color: "#475569",
-                        fontSize: 12,
-                        fontWeight: 800,
+                        padding:"7px 10px",
+                        borderRadius:999,
+                        background:"#ffffff",
+                        border:"1px solid #d1d5db",
+                        color:"#475569",
+                        fontSize:12,
+                        fontWeight:800,
                       }}
                     >
-                      {index + 1}. {name}
+                      {index+1}. {name}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-          </section>
-
-          <section style={section}>
-            <SectionTitle
-              kicker="4. Contatos"
-              title="Links e canais profissionais"
-              description="Preencha apenas o que você realmente usa."
-            />
-
-            <div className="pro-grid">
-              {[
-                ["phone", "Telefone"],
-                ["email", "E-mail"],
-                ["instagram", "Instagram"],
-                ["facebook", "Facebook"],
-                ["linkedin", "LinkedIn"],
-                ["website", "Site"],
-                ["portfolio_url", "Portfólio"],
-                ["maps_url", "Google Maps"],
-              ].map(([name, label]) => (
-                <Field
-                  key={name}
-                  label={label}
-                  name={name}
-                  value={form[name] || ""}
-                  onChange={change}
-                />
-              ))}
-            </div>
           </section>
 
           <section style={section}>
@@ -1258,6 +1274,89 @@ export default function ProProfissionalPainel() {
         </div>
       </div>
     </main>
+  );
+}
+
+
+function ProfessionalActionCard({
+  title,
+  code,
+  value,
+  top3,
+  onToggleHighlight,
+  children,
+}) {
+  const position = top3.indexOf(code);
+  const highlighted = position >= 0;
+  const filled = Boolean(String(value || "").trim());
+
+  return (
+    <section
+      className="pro-action-card"
+      style={{
+        padding:16,
+        borderRadius:17,
+        border:highlighted
+          ? "2px solid #b8892f"
+          : filled
+          ? "1px solid #d6b56c"
+          : "1px solid #e5e7eb",
+        background:filled ? "#fffdf7" : "#ffffff",
+        boxSizing:"border-box",
+        overflow:"hidden",
+      }}
+    >
+      <div>
+        <strong style={{display:"block",fontSize:15,lineHeight:1.25}}>
+          {title}
+        </strong>
+        <small style={{display:"block",marginTop:4,color:"#64748b",lineHeight:1.4}}>
+          {filled ? "Função disponível" : "Cole o link ou preencha o dado"}
+        </small>
+      </div>
+
+      <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #ece7dc"}}>
+        {children}
+      </div>
+
+      <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #ece7dc"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div style={{minWidth:0,flex:"1 1 180px"}}>
+            <strong style={{display:"block",fontSize:13.5,lineHeight:1.3}}>
+              {highlighted ? `Destaque ${position+1}` : "Adicionar aos destaques"}
+            </strong>
+            <small style={{display:"block",marginTop:3,color:"#64748b",lineHeight:1.4}}>
+              {highlighted
+                ? "Esta ação aparece entre as principais."
+                : filled
+                ? "Esta ação ganhará mais visibilidade na página."
+                : "Preencha o campo para liberar o destaque."}
+            </small>
+          </div>
+
+          <button
+            type="button"
+            onClick={()=>onToggleHighlight(code)}
+            disabled={!filled && !highlighted}
+            style={{
+              flex:"0 0 auto",
+              minWidth:112,
+              minHeight:40,
+              padding:"0 14px",
+              borderRadius:11,
+              border:highlighted ? "1px solid #b8892f" : "1px solid #d1d5db",
+              background:highlighted ? "#fff3d6" : "#ffffff",
+              color:!filled && !highlighted ? "#9ca3af" : "#7c5718",
+              fontWeight:850,
+              cursor:!filled && !highlighted ? "not-allowed" : "pointer",
+              whiteSpace:"nowrap",
+            }}
+          >
+            {highlighted ? "Remover" : "Adicionar"}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
