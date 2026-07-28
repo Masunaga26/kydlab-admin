@@ -112,7 +112,7 @@ function App() {
         {/* COMPATIBILIDADE COM ACESSOS ANTERIORES */}
         <Route
           path="/pro/inicio/:accessCode"
-          element={<ProInicioCadastro />}
+          element={<Navigate to="/pro" replace />}
         />
 
 

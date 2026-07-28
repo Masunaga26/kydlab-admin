@@ -12,7 +12,7 @@ import {
   codigoProValido,
   getProfessionalDashboardNovoPro,
   limparCodigoPro,
-  possuiAcessoAdminPro,
+  obterAcessoAdminPro,
   uploadImagemPro,
 } from "../../lib/tappro";
 
@@ -218,7 +218,7 @@ export default function ProProfissionalPainel() {
     async function load() {
       if (
         !codigoProValido(cleanCode) ||
-        !possuiAcessoAdminPro(cleanCode)
+        obterAcessoAdminPro() !== cleanCode
       ) {
         setError("Acesso administrativo não autorizado.");
         setLoading(false);

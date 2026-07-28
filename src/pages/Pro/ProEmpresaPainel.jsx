@@ -10,7 +10,7 @@ import {
   getCompanyDashboardPro,
   getCompanyPublicByPiecePro,
   limparCodigoPro,
-  possuiAcessoAdminPro,
+  obterAcessoAdminPro,
   salvarCadastroInicialEmpresaPro,
   uploadImagemPro,
 } from "../../lib/tappro";
@@ -175,7 +175,7 @@ export default function ProEmpresaPainel(){
       return;
     }
 
-    if(!possuiAcessoAdminPro(cleanCode)){
+    if(obterAcessoAdminPro()!==cleanCode){
       setErro("Acesso administrativo não autorizado.");
       setLoading(false);
       return;

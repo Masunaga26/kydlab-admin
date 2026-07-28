@@ -28,7 +28,7 @@ import {
   criarPixAnualEmpresaPro,
   regularizarAssinaturaMensalEmpresaPro,
   limparCodigoPro,
-  possuiAcessoAdminPro,
+  obterAcessoAdminPro,
   salvarCampanhaProfissionalEmpresaPro,
   salvarConexaoProfissionalEmpresaPro,
   salvarProgramacaoProfissionalEmpresaPro,
@@ -224,7 +224,7 @@ export default function ProProfissionalProfissionalPainel(){
         return;
       }
 
-      if(!possuiAcessoAdminPro(cleanCode)){
+      if(obterAcessoAdminPro()!==cleanCode){
         setErro("Acesso administrativo não autorizado.");
         setLoading(false);
         return;

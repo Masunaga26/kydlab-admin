@@ -13,7 +13,7 @@ import {
   codigoProValido,
   getInicioPerfilPorAcessoPro,
   limparCodigoPro,
-  possuiAcessoAdminPro,
+  obterAcessoAdminPro,
   salvarCadastroInicialProfissionalPro,
   uploadImagemPro,
 } from "../../lib/tappro";
@@ -174,9 +174,8 @@ export default function ProProfissionalCadastro() {
       }
 
       if (
-        !possuiAcessoAdminPro(
-          cleanCode
-        )
+        obterAcessoAdminPro() !==
+        cleanCode
       ) {
         setError(
           "Este acesso não está autorizado neste aparelho."

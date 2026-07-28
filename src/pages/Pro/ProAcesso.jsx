@@ -14,7 +14,6 @@ import {
   getPieceAccessStatePro,
   iniciarPerfilDaPecaPro,
   limparCodigoPro,
-  salvarAcessoAdminPorPecaPro,
 } from "../../lib/tappro";
 
 const PROFILE_LABELS = {
@@ -210,13 +209,8 @@ export default function ProAcesso() {
       return;
     }
 
-    salvarAcessoAdminPorPecaPro(
-      cleanCode,
-      data.access_code
-    );
-
     navigate(
-      `/pro/controle/${cleanCode}/${data.access_code}`
+      `/pro/controle/${cleanCode}`
     );
   }
 
