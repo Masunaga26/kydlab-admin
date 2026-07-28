@@ -358,7 +358,7 @@ export default function ProEmpresaPainel(){
       setTop3(current=>current.filter(item=>item!==moduleCode));
     }
   }
-  function toggle(code){setTop3(current=>current.includes(code)?current.filter(item=>item!==code):current.length>=3?current:[...current,code]);}
+  function toggle(code){setTop3(current=>current.includes(code)?current.filter(item=>item!==code):[...current,code]);}
   function logo(e){const file=e.target.files?.[0];if(!file)return;setLogoFile(file);setLogoPreview(URL.createObjectURL(file));}
 
   function validarFormulario(){
@@ -1088,8 +1088,8 @@ export default function ProEmpresaPainel(){
             <SectionTitle
               kicker="3. Ações e destaques"
               title="Escolha o que o visitante pode fazer"
-              description="Ative as funções úteis e marque até 3 delas como destaque principal."
-              aside={`${top3.length}/3 destaques`}
+              description="Ative as funções úteis e escolha livremente quais terão destaque principal."
+              aside={`${top3.length} ${top3.length===1?"destaque":"destaques"}`}
             />
 
             <div className="tap-actions">
@@ -1577,7 +1577,6 @@ function ActionCard({
 }){
   const position=top3.indexOf(code);
   const highlighted=position>=0;
-  const limitReached=!highlighted&&top3.length>=3;
 
   return (
     <section
@@ -1686,8 +1685,6 @@ function ActionCard({
               >
                 {highlighted
                   ?"Esta ação aparece entre as principais."
-                  :limitReached
-                  ?"O limite de 3 destaques foi atingido."
                   :"Esta ação ganhará mais visibilidade na página."}
               </small>
             </div>
@@ -1695,7 +1692,6 @@ function ActionCard({
             <button
               type="button"
               onClick={()=>onToggleHighlight(code)}
-              disabled={limitReached}
               style={{
                 flex:"0 0 auto",
                 minWidth:112,
@@ -1704,10 +1700,10 @@ function ActionCard({
                 borderRadius:11,
                 border:highlighted?"1px solid #b8892f":"1px solid #d1d5db",
                 background:highlighted?"#fff3d6":"#ffffff",
-                color:limitReached?"#9ca3af":"#7c5718",
+                color:"#7c5718",
                 fontWeight:850,
-                cursor:limitReached?"not-allowed":"pointer",
-                opacity:limitReached?.62:1,
+                cursor:"pointer",
+                opacity:1,
                 whiteSpace:"nowrap",
               }}
             >
