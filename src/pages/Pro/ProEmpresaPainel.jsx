@@ -1112,22 +1112,24 @@ export default function ProEmpresaPainel(){
               </ActionCard>
 
                           <ActionCard
-              title="Facebook"
-              description="Leve o visitante à sua página ou perfil no Facebook."
-              enabled={form.show_facebook}
-              toggleName="show_facebook"
-              onChange={change}
-              selected={top3.includes("facebook")}
-              onToggleHighlight={()=>toggle("facebook")}
-            >
-              <Field
-                label="Facebook"
-                name="facebook"
-                value={form.facebook}
+                title="Facebook"
+                checked={form.show_facebook}
+                name="show_facebook"
                 onChange={change}
-                placeholder="facebook.com/suaempresa"
-              />
-            </ActionCard>
+                code="facebook"
+                top3={top3}
+                onToggleHighlight={toggle}
+              >
+                {form.show_facebook&&(
+                  <Field
+                    label="Página ou perfil"
+                    name="facebook"
+                    value={form.facebook}
+                    onChange={change}
+                    placeholder="facebook.com/suaempresa"
+                  />
+                )}
+              </ActionCard>
 
 <ActionCard title="Avaliação no Google" checked={form.show_google_review} name="show_google_review" onChange={change} code="google_review" top3={top3} onToggleHighlight={toggle}>
                 {form.show_google_review&&(
