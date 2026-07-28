@@ -771,6 +771,131 @@ export async function escolherTipoPerfilDaPecaPro(
 const CHAVE_ADMIN_PRO =
   "tappro_codigo_admin";
 
+const CHAVE_ADMINS_AUTORIZADOS_PRO =
+  "tappro_admins_autorizados_v2";
+
+const PREFIXO_ADMIN_POR_PECA_PRO =
+  "tappro_v2_codigo_admin_";
+
+const CHAVE_MIGRACAO_ACESSO_PRO =
+  "tappro_acesso_seguro_v2";
+
+function storagePro() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage;
+}
+
+export function prepararArmazenamentoSeguroPro() {
+  const storage = storagePro();
+
+  if (!storage) {
+    return;
+  }
+
+  if (
+    storage.getItem(
+      CHAVE_MIGRACAO_ACESSO_PRO
+    ) === "1"
+  ) {
+    return;
+  }
+
+  const chavesAntigas = [];
+
+  for (
+    let index = 0;
+    index < storage.length;
+    index += 1
+  ) {
+    const key = storage.key(index) || "";
+
+    if (
+      key === CHAVE_ADMIN_PRO ||
+      (
+        key.startsWith(
+          "tappro_codigo_admin_"
+        ) &&
+        !key.startsWith(
+          PREFIXO_ADMIN_POR_PECA_PRO
+        )
+      )
+    ) {
+      chavesAntigas.push(key);
+    }
+  }
+
+  chavesAntigas.forEach((key) => {
+    storage.removeItem(key);
+  });
+
+  /*
+   * A primeira versão segura começa sem autorizações herdadas.
+   * Assim, celulares já afetados pedem o código correto uma vez.
+   */
+  storage.removeItem(
+    CHAVE_ADMINS_AUTORIZADOS_PRO
+  );
+
+  storage.setItem(
+    CHAVE_MIGRACAO_ACESSO_PRO,
+    "1"
+  );
+}
+
+function obterAdminsAutorizadosPro() {
+  prepararArmazenamentoSeguroPro();
+
+  const storage = storagePro();
+
+  if (!storage) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(
+      storage.getItem(
+        CHAVE_ADMINS_AUTORIZADOS_PRO
+      ) || "[]"
+    );
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(limparCodigoPro)
+      .filter(codigoAdminProValido);
+  } catch {
+    return [];
+  }
+}
+
+function salvarAdminsAutorizadosPro(codes) {
+  const storage = storagePro();
+
+  if (!storage) {
+    return false;
+  }
+
+  const uniqueCodes = Array.from(
+    new Set(
+      (Array.isArray(codes) ? codes : [])
+        .map(limparCodigoPro)
+        .filter(codigoAdminProValido)
+    )
+  );
+
+  storage.setItem(
+    CHAVE_ADMINS_AUTORIZADOS_PRO,
+    JSON.stringify(uniqueCodes)
+  );
+
+  return true;
+}
+
 export function salvarAcessoAdminPro(
   accessCode
 ) {
@@ -781,28 +906,68 @@ export function salvarAcessoAdminPro(
     return false;
   }
 
-  window.localStorage.setItem(
-    CHAVE_ADMIN_PRO,
-    cleanCode
-  );
+  const atuais =
+    obterAdminsAutorizadosPro();
 
-  return true;
+  return salvarAdminsAutorizadosPro([
+    ...atuais,
+    cleanCode,
+  ]);
 }
 
+export function possuiAcessoAdminPro(
+  accessCode
+) {
+  const cleanCode =
+    limparCodigoPro(accessCode);
+
+  if (!codigoAdminProValido(cleanCode)) {
+    return false;
+  }
+
+  return obterAdminsAutorizadosPro()
+    .includes(cleanCode);
+}
+
+/*
+ * Mantida apenas para compatibilidade de importação.
+ * Não existe mais um único código administrativo global.
+ */
 export function obterAcessoAdminPro() {
-  return limparCodigoPro(
-    window.localStorage.getItem(
-      CHAVE_ADMIN_PRO
-    )
-  );
+  prepararArmazenamentoSeguroPro();
+  return "";
 }
 
-export function encerrarAcessoAdminPro() {
-  window.localStorage.removeItem(
-    CHAVE_ADMIN_PRO
-  );
-}
+export function encerrarAcessoAdminPro(
+  accessCode = null
+) {
+  prepararArmazenamentoSeguroPro();
 
+  const storage = storagePro();
+
+  if (!storage) {
+    return;
+  }
+
+  const cleanCode =
+    limparCodigoPro(accessCode);
+
+  if (
+    accessCode &&
+    codigoAdminProValido(cleanCode)
+  ) {
+    salvarAdminsAutorizadosPro(
+      obterAdminsAutorizadosPro()
+        .filter((code) => code !== cleanCode)
+    );
+    return;
+  }
+
+  storage.removeItem(
+    CHAVE_ADMINS_AUTORIZADOS_PRO
+  );
+  storage.removeItem(CHAVE_ADMIN_PRO);
+}
 
 function chaveAcessoAdminPorPecaPro(
   pieceCode
@@ -811,7 +976,7 @@ function chaveAcessoAdminPorPecaPro(
     limparCodigoPro(pieceCode);
 
   return cleanPieceCode
-    ? `tappro_codigo_admin_${cleanPieceCode}`
+    ? `${PREFIXO_ADMIN_POR_PECA_PRO}${cleanPieceCode}`
     : "";
 }
 
@@ -819,20 +984,23 @@ export function salvarAcessoAdminPorPecaPro(
   pieceCode,
   accessCode
 ) {
+  prepararArmazenamentoSeguroPro();
+
+  const storage = storagePro();
   const cleanPieceCode =
     limparCodigoPro(pieceCode);
-
   const cleanAccessCode =
     limparCodigoPro(accessCode);
 
   if (
+    !storage ||
     !codigoPecaProValido(cleanPieceCode) ||
     !codigoAdminProValido(cleanAccessCode)
   ) {
     return false;
   }
 
-  window.localStorage.setItem(
+  storage.setItem(
     chaveAcessoAdminPorPecaPro(
       cleanPieceCode
     ),
@@ -840,23 +1008,25 @@ export function salvarAcessoAdminPorPecaPro(
   );
 
   /*
-   * Mantém compatibilidade com os painéis atuais,
-   * que ainda leem o código administrativo global.
+   * Autoriza este código para os painéis neste navegador,
+   * sem substituir autorizações de outras peças.
    */
-  salvarAcessoAdminPro(
+  return salvarAcessoAdminPro(
     cleanAccessCode
   );
-
-  return true;
 }
 
 export function obterAcessoAdminPorPecaPro(
   pieceCode
 ) {
+  prepararArmazenamentoSeguroPro();
+
+  const storage = storagePro();
   const cleanPieceCode =
     limparCodigoPro(pieceCode);
 
   if (
+    !storage ||
     !codigoPecaProValido(
       cleanPieceCode
     )
@@ -865,7 +1035,7 @@ export function obterAcessoAdminPorPecaPro(
   }
 
   return limparCodigoPro(
-    window.localStorage.getItem(
+    storage.getItem(
       chaveAcessoAdminPorPecaPro(
         cleanPieceCode
       )
@@ -876,10 +1046,14 @@ export function obterAcessoAdminPorPecaPro(
 export function encerrarAcessoAdminPorPecaPro(
   pieceCode
 ) {
+  prepararArmazenamentoSeguroPro();
+
+  const storage = storagePro();
   const cleanPieceCode =
     limparCodigoPro(pieceCode);
 
   if (
+    !storage ||
     !codigoPecaProValido(
       cleanPieceCode
     )
@@ -887,11 +1061,20 @@ export function encerrarAcessoAdminPorPecaPro(
     return;
   }
 
-  window.localStorage.removeItem(
+  const accessCode =
+    obterAcessoAdminPorPecaPro(
+      cleanPieceCode
+    );
+
+  storage.removeItem(
     chaveAcessoAdminPorPecaPro(
       cleanPieceCode
     )
   );
+
+  if (codigoAdminProValido(accessCode)) {
+    encerrarAcessoAdminPro(accessCode);
+  }
 }
 
 export async function validarAcessoAdminDaPecaPro(

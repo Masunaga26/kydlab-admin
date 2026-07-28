@@ -15,7 +15,7 @@ import {
   getInicioPerfilPorAcessoPro,
   getProfessionalProfileForEditByCode,
   limparCodigoPro,
-  obterAcessoAdminPro,
+  
   obterCodigoAcessoPro,
   salvarAcessoAdminPro,
   salvarAcessoPro,
@@ -90,14 +90,13 @@ export default function ProPortal() {
     let ativo = true;
 
     async function carregarAcessoSalvo() {
-      const codigoAdmin =
-        obterAcessoAdminPro();
+      /*
+       * Não existe mais um único acesso administrativo global.
+       * O portal não escolhe automaticamente entre várias peças.
+       */
+      const codigoAdmin = "";
 
-      if (
-        codigoAdminProValido(
-          codigoAdmin
-        )
-      ) {
+      if (codigoAdmin) {
         const { data, error } =
           await getInicioPerfilPorAcessoPro(
             codigoAdmin

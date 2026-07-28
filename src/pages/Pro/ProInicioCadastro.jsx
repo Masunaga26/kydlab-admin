@@ -16,8 +16,9 @@ import {
   iniciarPerfilDaPecaPro,
   limparCodigoPro,
   obterAcessoAdminPorPecaPro,
-  obterAcessoAdminPro,
+  prepararArmazenamentoSeguroPro,
   salvarAcessoAdminPorPecaPro,
+  salvarAcessoAdminPro,
   validarAcessoAdminDaPecaPro,
 } from "../../lib/tappro";
 
@@ -51,19 +52,13 @@ export default function ProInicioCadastro() {
     useState("Verificando este aparelho...");
 
   const codigoSalvoDaPeca =
-    useMemo(
-      () =>
-        obterAcessoAdminPorPecaPro(
-          cleanPieceCode
-        ),
-      [cleanPieceCode]
-    );
+    useMemo(() => {
+      prepararArmazenamentoSeguroPro();
 
-  const codigoAntigoGlobal =
-    useMemo(
-      () => obterAcessoAdminPro(),
-      []
-    );
+      return obterAcessoAdminPorPecaPro(
+        cleanPieceCode
+      );
+    }, [cleanPieceCode]);
 
   function abrirPainel(
     profileType,
@@ -244,13 +239,17 @@ export default function ProInicioCadastro() {
         return false;
       }
 
-      if (
-        cleanPieceCode &&
-        !salvarAcessoAdminPorPecaPro(
-          cleanPieceCode,
-          cleanAccessCode
-        )
-      ) {
+      const autorizouAparelho =
+        cleanPieceCode
+          ? salvarAcessoAdminPorPecaPro(
+              cleanPieceCode,
+              cleanAccessCode
+            )
+          : salvarAcessoAdminPro(
+              cleanAccessCode
+            );
+
+      if (!autorizouAparelho) {
         if (!silent) {
           setErro(
             "Não foi possível autorizar este aparelho."
@@ -301,7 +300,7 @@ export default function ProInicioCadastro() {
       }
 
       /*
-       * 1. Tenta a autorização nova, específica da peça.
+       * Tenta somente a autorização segura e específica da peça.
        */
       if (
         codigoAdminProValido(
@@ -315,32 +314,6 @@ export default function ProInicioCadastro() {
         const entrou =
           await validarEEntrar(
             codigoSalvoDaPeca,
-            true
-          );
-
-        if (entrou || !active) {
-          return;
-        }
-      }
-
-      /*
-       * 2. Migração dos celulares antigos:
-       * valida o código global antigo contra esta peça.
-       * Se pertencer, salva no novo formato e entra.
-       * Se não pertencer, ignora e pede o código correto.
-       */
-      if (
-        codigoAdminProValido(
-          codigoAntigoGlobal
-        )
-      ) {
-        setMensagem(
-          "Atualizando o acesso deste aparelho..."
-        );
-
-        const entrou =
-          await validarEEntrar(
-            codigoAntigoGlobal,
             true
           );
 
@@ -363,7 +336,6 @@ export default function ProInicioCadastro() {
   }, [
     cleanPieceCode,
     codigoSalvoDaPeca,
-    codigoAntigoGlobal,
   ]);
 
   async function submit(event) {
