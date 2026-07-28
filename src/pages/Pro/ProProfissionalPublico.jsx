@@ -119,6 +119,28 @@ function url(value) {
   return `https://${text}`;
 }
 
+function normalizeInstagram(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "";
+
+  if (/^https?:\/\//i.test(clean)) {
+    return clean;
+  }
+
+  return `https://instagram.com/${clean.replace(/^@/, "")}`;
+}
+
+function normalizeFacebook(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "";
+
+  if (/^https?:\/\//i.test(clean)) {
+    return clean;
+  }
+
+  return `https://facebook.com/${clean.replace(/^@/, "")}`;
+}
+
 function firstName(name) {
   return String(name || "").trim().split(/\s+/)[0] || "este profissional";
 }
@@ -130,10 +152,20 @@ function personalized(text, name) {
 }
 
 function goalUrl(data, goal, whatsapp) {
+  if (goal === "whatsapp") {
+    return whatsapp;
+  }
+
+  if (goal === "instagram") {
+    return normalizeInstagram(data.instagram);
+  }
+
+  if (goal === "facebook") {
+    return normalizeFacebook(data.facebook);
+  }
+
   const map = {
-    whatsapp,
     scheduling: data.scheduling_url,
-    instagram: data.instagram,
     portfolio: data.portfolio_url,
     company_page: data.company_page_url,
   };
@@ -183,9 +215,15 @@ function downloadContact(data, pageUrl) {
 }
 
 function moduleHref(data, code) {
+  if (code === "instagram") {
+    return normalizeInstagram(data.instagram);
+  }
+
+  if (code === "facebook") {
+    return normalizeFacebook(data.facebook);
+  }
+
   const map = {
-    instagram: data.instagram,
-    facebook: data.facebook,
     linkedin: data.linkedin,
     website: data.website,
     portfolio: data.portfolio_url,
@@ -250,12 +288,25 @@ export default function ProProfissionalPublico() {
 
     const number = digits(data.whatsapp);
     const finalNumber = number.startsWith("55") ? number : `55${number}`;
-    const text = `Olá, ${firstName(
-      data.professional_name
-    )}! Encontrei seu perfil pelo TAP PRO.`;
+
+    const pageUrl =
+      data.public_url ||
+      (typeof window !== "undefined"
+        ? window.location.href
+        : "");
+
+    const text =
+      `Olá, ${firstName(
+        data.professional_name
+      )}! Recebi seu contato pela sua página TAP PRO.` +
+      (pageUrl ? `\n${pageUrl}` : "");
 
     return `https://wa.me/${finalNumber}?text=${encodeURIComponent(text)}`;
-  }, [data?.whatsapp, data?.professional_name]);
+  }, [
+    data?.whatsapp,
+    data?.professional_name,
+    data?.public_url,
+  ]);
 
   const primaryGoal =
     data?.primary_goal === "auto"
