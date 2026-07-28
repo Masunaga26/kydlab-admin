@@ -20,6 +20,7 @@ import {
 
 const MODULES = [
   ["instagram", "Instagram", "Mostre novidades e fortaleça sua presença."],
+  ["facebook", "Facebook", "Conecte seu público à sua página ou perfil."],
   ["linkedin", "LinkedIn", "Apresente sua trajetória e conexões profissionais."],
   ["website", "Site", "Leve as pessoas ao seu site profissional."],
   ["portfolio", "Portfólio", "Mostre trabalhos, projetos e resultados."],
@@ -41,6 +42,8 @@ const initialForm = {
   phone: "",
   email: "",
   instagram: "",
+  facebook: "",
+  show_facebook: true,
   linkedin: "",
   website: "",
   maps_url: "",
@@ -729,6 +732,12 @@ export default function ProProfissionalCadastro() {
                 label="Instagram"
                 name="instagram"
                 value={form.instagram}
+                onChange={change}
+              />
+              <Field
+                label="Facebook"
+                name="facebook"
+                value={form.facebook}
                 onChange={change}
               />
               <Field

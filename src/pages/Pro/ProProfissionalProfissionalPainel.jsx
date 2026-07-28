@@ -21,7 +21,7 @@ import {
   excluirCampanhaProfissionalEmpresaPro,
   excluirConexaoProfissionalEmpresaPro,
   excluirProgramacaoProfissionalEmpresaPro,
-  getCompanyDashboardPro,
+  getProfessionalDashboardNovoPro,
   getMetricasEmpresaProfissionalPro,
   getResumoCobrancaEmpresaProfissionalPro,
   iniciarCheckoutMensalEmpresaPro,
@@ -144,7 +144,7 @@ function normalizarUrl(value){
   return /^https?:\/\//i.test(raw)?raw:`https://${raw}`;
 }
 
-export default function ProEmpresaProfissionalPainel(){
+export default function ProProfissionalProfissionalPainel(){
   const {accessCode}=useParams();
   const navigate=useNavigate();
   const cleanCode=limparCodigoPro(accessCode);
@@ -216,10 +216,10 @@ export default function ProEmpresaProfissionalPainel(){
         return;
       }
 
-      const {data,error}=await getCompanyDashboardPro(cleanCode);
+      const {data,error}=await getProfessionalDashboardNovoPro(cleanCode);
 
       if(error||!data?.found){
-        setErro("Painel profissional não encontrado.");
+        setErro("Painel do profissional não encontrado.");
         setLoading(false);
         return;
       }
@@ -250,7 +250,7 @@ export default function ProEmpresaProfissionalPainel(){
         !pastDueWithinGrace
       ){
         navigate(
-          `/pro/empresa/painel/${cleanCode}`,
+          `/pro/profissional/painel/${cleanCode}`,
           {replace:true}
         );
         return;
@@ -366,7 +366,7 @@ export default function ProEmpresaProfissionalPainel(){
         status,
         canPurchase:false,
         title:"Período gratuito já ativo",
-        message:"Sua empresa já está usando os 30 dias grátis. Uma nova assinatura ou um novo Pix anual não pode ser gerado agora.",
+        message:"Seu perfil já está usando os 30 dias grátis. Uma nova assinatura ou um novo Pix anual não pode ser gerado agora.",
       };
     }
 
@@ -401,7 +401,7 @@ export default function ProEmpresaProfissionalPainel(){
         status,
         canPurchase:false,
         title:"Plano Profissional já liberado",
-        message:"Os recursos profissionais já estão ativos para esta empresa. Uma nova cobrança foi bloqueada por segurança.",
+        message:"Os recursos profissionais já estão ativos para esta perfil. Uma nova cobrança foi bloqueada por segurança.",
       };
     }
 
@@ -1401,7 +1401,7 @@ export default function ProEmpresaProfissionalPainel(){
         >
           <button
             type="button"
-            onClick={()=>navigate(`/pro/empresa/painel/${cleanCode}`)}
+            onClick={()=>navigate(`/pro/profissional/painel/${cleanCode}`)}
             style={{
               minHeight:40,
               padding:"0 12px",
@@ -1427,7 +1427,7 @@ export default function ProEmpresaProfissionalPainel(){
             </h1>
 
             <p style={{margin:"10px 0 0",color:"#d1d5db",lineHeight:1.55}}>
-              {dados?.display_name||"Sua empresa"} · {trialText}
+              {dados?.professional_name||"Seu perfil"} · {trialText}
             </p>
           </div>
         </header>
@@ -1450,7 +1450,7 @@ export default function ProEmpresaProfissionalPainel(){
               <p style={{margin:"0 0 6px",fontSize:11,fontWeight:900,color:"#6d28d9",textTransform:"uppercase"}}>
                 Biblioteca de conexões
               </p>
-              <h2 style={{margin:0}}>Conecte tudo o que sua empresa já usa</h2>
+              <h2 style={{margin:0}}>Conecte tudo o que seu perfil já usa</h2>
               <p style={{margin:"8px 0 0",color:"#64748b",lineHeight:1.55}}>
                 Cadastre uma vez e reutilize em sua página, no destino direto, em campanhas e na programação por horário.
               </p>
@@ -1666,7 +1666,7 @@ export default function ProEmpresaProfissionalPainel(){
             <Choice
               selected={form.opening_mode==="page"}
               title="Mostrar minha página TAP PRO"
-              description="Apresenta contatos, destaques, informações e todas as conexões da empresa."
+              description="Apresenta contatos, destaques, informações e todas as conexões da perfil."
               onClick={()=>setForm(current=>({...current,opening_mode:"page"}))}
             />
 
@@ -2869,7 +2869,7 @@ export default function ProEmpresaProfissionalPainel(){
             <button
               type="button"
               onClick={()=>{
-                const url=`${window.location.origin}/pro/empresa/${dados?.piece_code}`;
+                const url=`${window.location.origin}/pro/perfil/${dados?.piece_code}`;
                 window.open(url,"_blank","noopener,noreferrer");
               }}
               style={secondaryButton}

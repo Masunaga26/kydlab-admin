@@ -22,6 +22,10 @@ const MODULES = {
     label: "Instagram",
     helper: "Acompanhe novidades e conteúdos",
   },
+  facebook: {
+    label: "Facebook",
+    helper: "Acompanhe publicações e novidades",
+  },
   linkedin: {
     label: "LinkedIn",
     helper: "Veja trajetória e conexões profissionais",
@@ -181,6 +185,7 @@ function downloadContact(data, pageUrl) {
 function moduleHref(data, code) {
   const map = {
     instagram: data.instagram,
+    facebook: data.facebook,
     linkedin: data.linkedin,
     website: data.website,
     portfolio: data.portfolio_url,
@@ -194,7 +199,16 @@ function moduleHref(data, code) {
   return url(map[code] || "");
 }
 
+function FacebookIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M13.7 22v-8h2.7l.4-3.1h-3.1V9c0-.9.3-1.5 1.6-1.5H17V4.7c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4.1v2.2H8.2V14h2.6v8h2.9Z" />
+    </svg>
+  );
+}
+
 function ModuleIcon({ code }) {
+  if (code === "facebook") return <FacebookIcon size={20} />;
   if (code === "linkedin") return <BriefcaseBusiness size={20} />;
   if (code === "scheduling") return <CalendarDays size={20} />;
   if (code === "maps") return <MapPin size={20} />;

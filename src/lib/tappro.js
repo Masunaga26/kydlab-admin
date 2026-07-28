@@ -984,6 +984,9 @@ function criarPayloadEmpresaPro(formData) {
     instagram: texto(formData.instagram) || null,
     show_instagram: Boolean(formData.show_instagram),
 
+    facebook: texto(formData.facebook) || null,
+    show_facebook: Boolean(formData.show_facebook),
+
     google_review_url:
       texto(formData.google_review_url) || null,
     show_google_review:
@@ -1194,6 +1197,14 @@ function criarPayloadProfissionalNovo(
       String(
         formData.instagram || ""
       ).trim() || null,
+
+    facebook:
+      String(
+        formData.facebook || ""
+      ).trim() || null,
+
+    show_facebook:
+      formData.show_facebook !== false,
 
     linkedin:
       String(
@@ -2379,3 +2390,20 @@ export async function regularizarAssinaturaMensalEmpresaPro(
     error: null,
   };
 }
+
+// Compatibilidade comercial: o banco e as Edge Functions agora aceitam
+// perfis Empresa e Profissional pelo mesmo código administrativo.
+export const ativarTesteProfissionalPessoaPro =
+  ativarTesteProfissionalEmpresaPro;
+
+export const getResumoCobrancaProfissionalPro =
+  getResumoCobrancaEmpresaProfissionalPro;
+
+export const iniciarCheckoutMensalProfissionalPro =
+  iniciarCheckoutMensalEmpresaPro;
+
+export const criarPixAnualProfissionalPro =
+  criarPixAnualEmpresaPro;
+
+export const regularizarAssinaturaMensalProfissionalPro =
+  regularizarAssinaturaMensalEmpresaPro;

@@ -15,6 +15,20 @@ import {
   X,
 } from "lucide-react";
 
+function FacebookIcon({ size = 22 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M13.7 22v-8h2.7l.4-3.1h-3.1V9c0-.9.3-1.5 1.6-1.5H17V4.7c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4.1v2.2H8.2V14h2.6v8h2.9Z" />
+    </svg>
+  );
+}
+
 function InstagramIcon({ size = 22, strokeWidth = 2 }) {
   return (
     <svg
@@ -55,6 +69,11 @@ const ACTIONS = {
     title: "Seguir no Instagram",
     helper: "Acompanhe novidades e bastidores",
     icon: InstagramIcon,
+  },
+  facebook: {
+    title: "Ver no Facebook",
+    helper: "Acompanhe publicações e novidades",
+    icon: FacebookIcon,
   },
   google_review: {
     title: "Avaliar no Google",
@@ -181,6 +200,13 @@ function normalizeInstagram(value) {
   if (!clean) return "";
   if (/^https?:\/\//i.test(clean)) return clean;
   return `https://instagram.com/${clean.replace(/^@/, "")}`;
+}
+
+function normalizeFacebook(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "";
+  if (/^https?:\/\//i.test(clean)) return clean;
+  return `https://facebook.com/${clean.replace(/^@/, "")}`;
 }
 
 function buildWhatsappUrl(data) {
@@ -429,6 +455,10 @@ export default function ProEmpresaPagina({
       return { type: "link", href: normalizeInstagram(data.instagram) };
     }
 
+    if (code === "facebook" && data.show_facebook && data.facebook) {
+      return { type: "link", href: normalizeFacebook(data.facebook) };
+    }
+
     if (
       code === "google_review" &&
       data.show_google_review &&
@@ -621,6 +651,7 @@ export default function ProEmpresaPagina({
   const actionCodes = [
     "whatsapp",
     "instagram",
+    "facebook",
     "google_review",
     "maps",
     "phone",

@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ImagePlus,
   UserRound,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   atualizarProfissionalNovoPro,
+  ativarTesteProfissionalPessoaPro,
   codigoProValido,
   getProfessionalDashboardNovoPro,
   limparCodigoPro,
@@ -15,6 +18,7 @@ import {
 
 const MODULES = [
   ["instagram", "Instagram"],
+  ["facebook", "Facebook"],
   ["linkedin", "LinkedIn"],
   ["website", "Site"],
   ["portfolio", "Portfólio"],
@@ -64,6 +68,8 @@ const initial = {
   phone: "",
   email: "",
   instagram: "",
+  facebook: "",
+  show_facebook: true,
   linkedin: "",
   website: "",
   maps_url: "",
@@ -205,6 +211,8 @@ export default function ProProfissionalPainel() {
   const [logoFile, setLogoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const [logoPreview, setLogoPreview] = useState("");
+  const [activatingTrial, setActivatingTrial] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -301,6 +309,49 @@ export default function ProProfissionalPainel() {
     }
   }
 
+  function showToast(type, text) {
+    setToast({ type, text });
+    window.setTimeout(() => {
+      setToast((current) =>
+        current?.text === text ? null : current
+      );
+    }, type === "error" ? 7000 : 4200);
+  }
+
+  async function activateTrial() {
+    setActivatingTrial(true);
+    setError("");
+    setSuccess("");
+
+    const result =
+      await ativarTesteProfissionalPessoaPro(cleanCode);
+
+    if (result.error) {
+      const message =
+        result.error.message ||
+        "Não foi possível liberar o teste grátis.";
+      setError(message);
+      showToast("error", message);
+      setActivatingTrial(false);
+      return;
+    }
+
+    setData((current) => ({
+      ...current,
+      ...result.data,
+      plan_code: "professional",
+      subscription_status: "trial",
+      professional_enabled: true,
+    }));
+
+    const message =
+      "Plano Profissional liberado por 30 dias.";
+    setSuccess(message);
+    showToast("success", message);
+    setActivatingTrial(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function save(event) {
     event?.preventDefault();
 
@@ -363,7 +414,9 @@ export default function ProProfissionalPainel() {
 
     if (result.error) {
       console.error(result.error);
-      setError(result.error.message || "Não foi possível salvar.");
+      const message = result.error.message || "Não foi possível salvar.";
+      setError(message);
+      showToast("error", message);
       setSaving(false);
       return;
     }
@@ -374,9 +427,22 @@ export default function ProProfissionalPainel() {
     setPhotoFile(null);
     setLogoFile(null);
     setSuccess("Alterações salvas com sucesso.");
+    showToast("success", "Alterações salvas com sucesso.");
     setSaving(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  const subscriptionStatus =
+    String(data?.subscription_status || "")
+      .trim()
+      .toLowerCase();
+
+  const professionalEnabled =
+    Boolean(data?.professional_enabled) ||
+    ["trial", "active", "past_due"].includes(subscriptionStatus);
+
+  const trialDaysRemaining =
+    data?.trial_days_remaining;
 
   if (loading) return <Screen text="Carregando painel..." />;
   if (error && !data) return <Screen text={error} />;
@@ -392,6 +458,49 @@ export default function ProProfissionalPainel() {
         color: "#111827",
       }}
     >
+      {toast && (
+        <div
+          role="alert"
+          style={{
+            position: "fixed",
+            top: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+            width: "calc(100% - 28px)",
+            maxWidth: 560,
+            padding: "14px 16px",
+            borderRadius: 15,
+            background:
+              toast.type === "error" ? "#991b1b" : "#166534",
+            color: "#ffffff",
+            boxShadow: "0 18px 46px rgba(15,23,42,.28)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontWeight: 800,
+          }}
+        >
+          {toast.type === "error"
+            ? <AlertCircle size={20} />
+            : <CheckCircle2 size={20} />}
+          <span style={{ flex: 1 }}>{toast.text}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            style={{
+              border: 0,
+              background: "transparent",
+              color: "#ffffff",
+              fontSize: 20,
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <style>{`
         .pro-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
         .pro-modules{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -401,6 +510,9 @@ export default function ProProfissionalPainel() {
           .pro-grid,.pro-modules,.pro-goals{grid-template-columns:1fr}
           .pro-topbar{grid-template-columns:1fr}
           form{padding-left:16px!important;padding-right:16px!important}
+          section>div[style*="grid-template-columns: 1fr auto"]{
+            grid-template-columns:1fr!important;
+          }
         }
       `}</style>
 
@@ -457,7 +569,9 @@ export default function ProProfissionalPainel() {
                     letterSpacing: ".6px",
                   }}
                 >
-                  Perfil profissional
+                  {professionalEnabled
+                    ? "Plano Profissional"
+                    : "Plano Essencial"}
                 </span>
 
                 <h1
@@ -531,6 +645,105 @@ export default function ProProfissionalPainel() {
             {success}
           </div>
         )}
+
+        <section
+          style={{
+            marginTop: 18,
+            padding: 20,
+            borderRadius: 20,
+            background: professionalEnabled
+              ? "#f0fdf4"
+              : "#fffaf0",
+            border: professionalEnabled
+              ? "1px solid #bbf7d0"
+              : "1px solid #e6d7b8",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: 16,
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <strong
+                style={{
+                  display: "block",
+                  fontSize: 18,
+                }}
+              >
+                {professionalEnabled
+                  ? "Plano Profissional ativo"
+                  : "Plano Essencial incluído"}
+              </strong>
+
+              <p
+                style={{
+                  margin: "7px 0 0",
+                  color: "#64748b",
+                  lineHeight: 1.5,
+                }}
+              >
+                {professionalEnabled
+                  ? subscriptionStatus === "trial"
+                    ? `Teste grátis${Number.isFinite(trialDaysRemaining)
+                        ? ` · ${trialDaysRemaining} dias restantes`
+                        : ""}`
+                    : "Recursos profissionais liberados."
+                  : "Use seu perfil sem mensalidade ou teste os recursos profissionais por 30 dias."}
+              </p>
+            </div>
+
+            {!professionalEnabled ? (
+              <button
+                type="button"
+                onClick={activateTrial}
+                disabled={activatingTrial}
+                style={{
+                  minHeight: 48,
+                  padding: "0 17px",
+                  border: 0,
+                  borderRadius: 13,
+                  background: activatingTrial
+                    ? "#9ca3af"
+                    : "#111827",
+                  color: "#ffffff",
+                  fontWeight: 900,
+                  cursor: activatingTrial
+                    ? "not-allowed"
+                    : "pointer",
+                }}
+              >
+                {activatingTrial
+                  ? "Liberando..."
+                  : "Testar Profissional por 30 dias"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    `/pro/profissional/profissional/${cleanCode}`
+                  )
+                }
+                style={{
+                  minHeight: 48,
+                  padding: "0 17px",
+                  border: 0,
+                  borderRadius: 13,
+                  background: "#111827",
+                  color: "#ffffff",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Abrir Plano Profissional
+              </button>
+            )}
+          </div>
+        </section>
 
         <form
           onSubmit={save}
@@ -936,6 +1149,7 @@ export default function ProProfissionalPainel() {
                 ["phone", "Telefone"],
                 ["email", "E-mail"],
                 ["instagram", "Instagram"],
+                ["facebook", "Facebook"],
                 ["linkedin", "LinkedIn"],
                 ["website", "Site"],
                 ["portfolio_url", "Portfólio"],

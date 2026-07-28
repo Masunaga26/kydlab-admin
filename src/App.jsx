@@ -34,6 +34,7 @@ import ProEmpresaProfissionalPainel from "./pages/Pro/ProEmpresaProfissionalPain
 import ProEmpresaPublica from "./pages/Pro/ProEmpresaPublica";
 import ProProfissionalCadastro from "./pages/Pro/ProProfissionalCadastro";
 import ProProfissionalPainel from "./pages/Pro/ProProfissionalPainel";
+import ProProfissionalProfissionalPainel from "./pages/Pro/ProProfissionalProfissionalPainel";
 import ProProfissionalPublico from "./pages/Pro/ProProfissionalPublico";
 import AdminProModulos from "./pages/AdminProModulos";
 import ProPagamentoRetorno from "./pages/Pro/ProPagamentoRetorno";
@@ -138,6 +139,11 @@ function App() {
         <Route
           path="/pro/profissional/painel/:accessCode"
           element={<ProProfissionalPainel />}
+        />
+
+        <Route
+          path="/pro/profissional/profissional/:accessCode"
+          element={<ProProfissionalProfissionalPainel />}
         />
 
         <Route

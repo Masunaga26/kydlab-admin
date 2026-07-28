@@ -32,6 +32,7 @@ const initial = {
   opening_mode:"page",direct_target_title:"",direct_target_url:"",
   whatsapp:"",whatsapp_message:"",show_whatsapp:true,
   phone:"",show_phone:false,instagram:"",show_instagram:false,
+  facebook:"",show_facebook:false,
   google_review_url:"",show_google_review:false,pix_key:"",show_pix:false,
   wifi_ssid:"",wifi_password:"",show_wifi:false,
   business_hours:"",show_business_hours:false,
@@ -342,6 +343,7 @@ export default function ProEmpresaPainel(){
     const highlightByToggle={
       show_whatsapp:"whatsapp",
       show_instagram:"instagram",
+      show_facebook:"facebook",
       show_google_review:"google_review",
       show_maps:"maps",
       show_phone:"phone",
@@ -1109,7 +1111,25 @@ export default function ProEmpresaPainel(){
                 )}
               </ActionCard>
 
-              <ActionCard title="Avaliação no Google" checked={form.show_google_review} name="show_google_review" onChange={change} code="google_review" top3={top3} onToggleHighlight={toggle}>
+                          <ActionCard
+              title="Facebook"
+              description="Leve o visitante à sua página ou perfil no Facebook."
+              enabled={form.show_facebook}
+              toggleName="show_facebook"
+              onChange={change}
+              selected={top3.includes("facebook")}
+              onToggleHighlight={()=>toggle("facebook")}
+            >
+              <Field
+                label="Facebook"
+                name="facebook"
+                value={form.facebook}
+                onChange={change}
+                placeholder="facebook.com/suaempresa"
+              />
+            </ActionCard>
+
+<ActionCard title="Avaliação no Google" checked={form.show_google_review} name="show_google_review" onChange={change} code="google_review" top3={top3} onToggleHighlight={toggle}>
                 {form.show_google_review&&(
                   <Field label="Link de avaliação" name="google_review_url" value={form.google_review_url} onChange={change}/>
                 )}
