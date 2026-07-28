@@ -8,8 +8,10 @@ import {
   atualizarEmpresaPro,
   codigoAdminProValido,
   getCompanyDashboardPro,
+  getCompanyPublicByPiecePro,
   limparCodigoPro,
   obterAcessoAdminPro,
+  salvarCadastroInicialEmpresaPro,
   uploadImagemPro,
 } from "../../lib/tappro";
 
@@ -445,7 +447,61 @@ export default function ProEmpresaPainel(){
       phone:digits(form.phone),
     };
 
-    const {data,error}=await atualizarEmpresaPro(cleanCode,payload,top3);
+    /*
+     * No primeiro salvamento, a página pública ainda não existe.
+     * Nesse caso, usa o fluxo oficial de cadastro inicial.
+     * Nas edições posteriores, usa somente a atualização normal.
+     */
+    const publicCheck =
+      dados?.piece_code
+        ? await getCompanyPublicByPiecePro(
+            dados.piece_code
+          )
+        : {
+            data: null,
+            error: null,
+          };
+
+    const firstRegistration =
+      !publicCheck.error &&
+      publicCheck.data?.found !== true;
+
+    let saveResult;
+
+    if(firstRegistration){
+      saveResult=
+        await salvarCadastroInicialEmpresaPro(
+          cleanCode,
+          payload,
+          top3
+        );
+
+      /*
+       * Compatibilidade com peças que tenham sido parcialmente
+       * iniciadas pelo fluxo anterior: se o cadastro inicial
+       * já existir, tenta concluir pela atualização normal.
+       */
+      if(saveResult.error){
+        saveResult=
+          await atualizarEmpresaPro(
+            cleanCode,
+            payload,
+            top3
+          );
+      }
+    }else{
+      saveResult=
+        await atualizarEmpresaPro(
+          cleanCode,
+          payload,
+          top3
+        );
+    }
+
+    const {
+      data,
+      error,
+    }=saveResult;
 
     if(error){
       setErro(error.message||"Não foi possível salvar.");
