@@ -1199,6 +1199,12 @@ function criarPayloadProfissionalNovo(
   formData
 ) {
   return {
+    page_template:
+      String(formData.page_template || "modern").trim() || "modern",
+
+    color_palette:
+      String(formData.color_palette || "gold").trim() || "gold",
+
     professional_name:
       String(
         formData.professional_name || ""

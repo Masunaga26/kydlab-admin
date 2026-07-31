@@ -18,6 +18,23 @@ import {
   uploadImagemPro,
 } from "../../lib/tappro";
 
+
+const THEMES = [
+  ["classic", "Clássica", "Elegante, sólida e tradicional."],
+  ["modern", "Moderna", "Atual, limpa e equilibrada."],
+  ["futuristic", "Futurista", "Tecnológica, marcante e ousada."],
+  ["minimalist", "Minimalista", "Leve, clara e focada no essencial."],
+];
+
+const COLOR_PALETTES = [
+  ["gold", "Dourado", "#b8892f"],
+  ["blue", "Azul", "#2563eb"],
+  ["green", "Verde", "#15803d"],
+  ["red", "Vermelho", "#b91c1c"],
+  ["purple", "Roxo", "#7c3aed"],
+  ["graphite", "Grafite", "#111827"],
+];
+
 const MODULES = [
   ["instagram", "Instagram", "Mostre novidades e fortaleça sua presença."],
   ["facebook", "Facebook", "Conecte seu público à sua página ou perfil."],
@@ -32,6 +49,8 @@ const MODULES = [
 ];
 
 const initialForm = {
+  page_template: "modern",
+  color_palette: "gold",
   professional_name: "",
   professional_title: "",
   company_name: "",
@@ -674,6 +693,70 @@ export default function ProProfissionalCadastro() {
             )}
           </section>
 
+
+          <section style={section}>
+            <SectionTitle
+              kicker="6. Aparência"
+              title="Escolha o estilo da página"
+              description="Defina o visual e a cor principal do seu perfil profissional."
+            />
+
+            <div className="pro-theme-grid">
+              {THEMES.map(([code,name,description])=>{
+                const selected=form.page_template===code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={()=>setForm(current=>({...current,page_template:code}))}
+                    style={{
+                      padding:10,
+                      borderRadius:14,
+                      textAlign:"left",
+                      cursor:"pointer",
+                      border:selected?"2px solid #b8892f":"1px solid #d1d5db",
+                      background:selected?"#fffaf0":"#ffffff",
+                      color:"#111827",
+                    }}
+                  >
+                    <ThemePreview type={code} accent={COLOR_PALETTES.find(item=>item[0]===form.color_palette)?.[2]||"#b8892f"}/>
+                    <strong style={{display:"block",marginTop:9}}>{name}</strong>
+                    <small style={{display:"block",marginTop:4,color:"#6b7280",lineHeight:1.4}}>{description}</small>
+                  </button>
+                );
+              })}
+            </div>
+
+            <h3 style={{margin:"22px 0 10px",fontSize:16}}>Cor principal</h3>
+            <div className="pro-color-grid">
+              {COLOR_PALETTES.map(([code,name,color])=>{
+                const selected=form.color_palette===code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={()=>setForm(current=>({...current,color_palette:code}))}
+                    style={{
+                      minHeight:52,
+                      padding:"9px 11px",
+                      borderRadius:13,
+                      border:selected?`2px solid ${color}`:"1px solid #d1d5db",
+                      background:selected?"#ffffff":"#fafafa",
+                      color:"#111827",
+                      display:"flex",
+                      alignItems:"center",
+                      gap:10,
+                      cursor:"pointer",
+                      fontWeight:850,
+                    }}
+                  >
+                    <span style={{width:26,height:26,borderRadius:9,background:color,boxShadow:"inset 0 0 0 1px rgba(0,0,0,.08)"}}/>
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
           <section
             style={{
               ...card,
@@ -732,6 +815,23 @@ function CadastroActionCard({title,code,value,top3,onToggleHighlight,children}) 
         </button>
       </div>
     </section>
+  );
+}
+
+
+function ThemePreview({type,accent}) {
+  const dark=type==="futuristic";
+  const minimalist=type==="minimalist";
+  const classic=type==="classic";
+  return (
+    <div style={{height:82,padding:7,borderRadius:11,background:dark?"#111116":"#f8fafc",border:"1px solid #e5e7eb",overflow:"hidden"}}>
+      <div style={{height:27,borderRadius:minimalist?3:8,background:minimalist?"#ffffff":classic?"linear-gradient(135deg,#241f19,#74521e)":dark?"linear-gradient(135deg,#09090b,#312e81,#6d28d9)":"linear-gradient(135deg,#111827,#475569)"}}/>
+      <div style={{height:13,marginTop:6,borderRadius:6,background:accent,opacity:.92}}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginTop:5}}>
+        <div style={{height:17,borderRadius:6,background:dark?"#1f1f28":"#ffffff",border:"1px solid #e5e7eb"}}/>
+        <div style={{height:17,borderRadius:6,background:dark?"#1f1f28":"#ffffff",border:"1px solid #e5e7eb"}}/>
+      </div>
+    </div>
   );
 }
 

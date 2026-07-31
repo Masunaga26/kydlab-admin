@@ -17,6 +17,28 @@ import {
   limparCodigoPro,
 } from "../../lib/tappro";
 
+
+const PALETTE_COLORS = {
+  gold: "#b8892f",
+  blue: "#2563eb",
+  green: "#15803d",
+  red: "#b91c1c",
+  purple: "#7c3aed",
+  graphite: "#111827",
+};
+
+function resolveProfessionalTheme(data) {
+  const template=String(data?.page_template||"modern");
+  const accent=PALETTE_COLORS[data?.color_palette]||PALETTE_COLORS.gold;
+  const themes={
+    classic:{page:"#f3efe8",card:"#fffdfa",header:"linear-gradient(145deg,#241d15,#74521e)",text:"#211d18",muted:"#756f67",border:"#e7dfd4"},
+    modern:{page:"#edf1f5",card:"#ffffff",header:"linear-gradient(145deg,#111827,#334155)",text:"#111827",muted:"#687386",border:"#e2e8f0"},
+    futuristic:{page:"#07070a",card:"#111116",header:"linear-gradient(145deg,#111116,#312e81 58%,#6d28d9)",text:"#f8fafc",muted:"#a1a1aa",border:"#2b2b35"},
+    minimalist:{page:"#f5f5f2",card:"#ffffff",header:"#ffffff",text:"#161616",muted:"#737373",border:"#e5e5e0"},
+  };
+  return {...(themes[template]||themes.modern),accent,template};
+}
+
 const MODULES = {
   instagram: {
     label: "Instagram",
@@ -349,6 +371,8 @@ export default function ProProfissionalPublico() {
   if (loading) return <Screen text="Carregando perfil..." />;
   if (error || !data) return <Screen text={error} />;
 
+  const theme = resolveProfessionalTheme(data);
+  const darkTheme = theme.template === "futuristic";
   const services = [data.service_1, data.service_2].filter(Boolean);
 
   const visibleModules = (data.top3 || [])
@@ -398,8 +422,8 @@ export default function ProProfissionalPublico() {
       style={{
         minHeight: "100vh",
         padding: "28px 14px 48px",
-        background: "linear-gradient(180deg,#f4f5f7 0%,#eceff3 100%)",
-        color: "#111827",
+        background: theme.page,
+        color: theme.text,
         fontFamily:
           'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
       }}
@@ -415,9 +439,8 @@ export default function ProProfissionalPublico() {
           style={{
             padding: "30px 24px 28px",
             borderRadius: 28,
-            background:
-              "linear-gradient(145deg,#161616 0%,#26231f 58%,#3b352e 100%)",
-            color: "#ffffff",
+            background: theme.header,
+            color: theme.template === "minimalist" ? theme.text : "#ffffff",
             textAlign: "center",
             boxShadow: "0 20px 54px rgba(17,24,39,.19)",
             position: "relative",
@@ -529,7 +552,7 @@ export default function ProProfissionalPublico() {
             <p
               style={{
                 margin: "0 0 7px",
-                color: "#9a6d23",
+                color: theme.accent,
                 fontSize: 11.5,
                 fontWeight: 850,
                 textTransform: "uppercase",
@@ -553,7 +576,7 @@ export default function ProProfissionalPublico() {
             <p
               style={{
                 margin: "10px 0 0",
-                color: "#6b7280",
+                color: theme.muted,
                 fontSize: 14.5,
                 lineHeight: 1.58,
               }}
@@ -562,7 +585,7 @@ export default function ProProfissionalPublico() {
             </p>
 
             {primaryGoal === "share" ? (
-              <button type="button" onClick={share} style={primaryButtonStyle}>
+              <button type="button" onClick={share} style={{...primaryButtonStyle,background:theme.accent}}>
                 <Share2 size={20} />
                 {personalized(goal.button, data.professional_name)}
                 <ArrowUpRight size={18} style={{ marginLeft: "auto" }} />
@@ -572,7 +595,7 @@ export default function ProProfissionalPublico() {
                 href={actionUrl}
                 target="_blank"
                 rel="noreferrer"
-                style={primaryButtonStyle}
+                style={{...primaryButtonStyle,background:theme.accent}}
               >
                 {primaryGoal === "whatsapp" ? (
                   <MessageCircle size={20} />
@@ -591,8 +614,8 @@ export default function ProProfissionalPublico() {
               gridTemplateColumns: "1fr 1fr",
               gap: 0,
               marginTop: 18,
-              borderTop: "1px solid #dfe3e8",
-              borderBottom: "1px solid #dfe3e8",
+              borderTop: `1px solid ${theme.border}`,
+              borderBottom: `1px solid ${theme.border}`,
             }}
           >
             <button
@@ -600,7 +623,7 @@ export default function ProProfissionalPublico() {
               onClick={() => downloadContact(data, window.location.href)}
               style={{
                 ...toolbarButtonStyle,
-                borderRight: "1px solid #dfe3e8",
+                borderRight: `1px solid ${theme.border}`,
               }}
             >
               <UserRoundPlus size={19} />
@@ -632,9 +655,9 @@ export default function ProProfissionalPublico() {
                       minHeight: 82,
                       padding: "11px 6px",
                       borderRadius: 16,
-                      border: "1px solid #e1e5ea",
-                      background: "rgba(255,255,255,.72)",
-                      color: "#111827",
+                      border: `1px solid ${theme.border}`,
+                      background: darkTheme ? "rgba(255,255,255,.04)" : theme.card,
+                      color: theme.text,
                       textDecoration: "none",
                       display: "flex",
                       flexDirection: "column",
@@ -651,7 +674,7 @@ export default function ProProfissionalPublico() {
                         height: 38,
                         borderRadius: 12,
                         background: "#f3eadc",
-                        color: "#9a6d23",
+                        color: theme.accent,
                         display: "grid",
                         placeItems: "center",
                       }}
@@ -670,7 +693,7 @@ export default function ProProfissionalPublico() {
               style={{
                 marginTop: 30,
                 paddingTop: 25,
-                borderTop: "1px solid #dfe3e8",
+                borderTop: `1px solid ${theme.border}`,
               }}
             >
               <SectionTitle
@@ -689,7 +712,7 @@ export default function ProProfissionalPublico() {
                       minHeight: 66,
                       padding: "11px 13px",
                       borderRadius: 15,
-                      border: "1px solid #e1e5ea",
+                      border: `1px solid ${theme.border}`,
                       background: "rgba(255,255,255,.76)",
                       color: "#111827",
                       textDecoration: "none",
@@ -705,7 +728,7 @@ export default function ProProfissionalPublico() {
                         height: 40,
                         borderRadius: 12,
                         background: "#f3eadc",
-                        color: "#9a6d23",
+                        color: theme.accent,
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -729,7 +752,7 @@ export default function ProProfissionalPublico() {
                         style={{
                           display: "block",
                           marginTop: 3,
-                          color: "#6b7280",
+                          color: theme.muted,
                           fontSize: 12.5,
                           lineHeight: 1.4,
                         }}
@@ -750,7 +773,7 @@ export default function ProProfissionalPublico() {
               style={{
                 marginTop: 30,
                 paddingTop: 25,
-                borderTop: "1px solid #dfe3e8",
+                borderTop: `1px solid ${theme.border}`,
               }}
             >
               <SectionTitle
@@ -766,7 +789,7 @@ export default function ProProfissionalPublico() {
                       padding: "13px 14px",
                       borderRadius: 14,
                       background: "rgba(255,255,255,.66)",
-                      border: "1px solid #e1e5ea",
+                      border: `1px solid ${theme.border}`,
                       fontSize: 14,
                       fontWeight: 720,
                     }}
@@ -783,7 +806,7 @@ export default function ProProfissionalPublico() {
               marginTop: 27,
               padding: "18px 0 4px",
               textAlign: "center",
-              color: "#6b7280",
+              color: theme.muted,
               fontSize: 11.5,
             }}
           >
@@ -865,7 +888,7 @@ function SectionTitle({ title, subtitle }) {
       <p
         style={{
           margin: "5px 0 0",
-          color: "#6b7280",
+          color: theme.muted,
           fontSize: 12.7,
           lineHeight: 1.45,
         }}
