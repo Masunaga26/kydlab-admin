@@ -699,6 +699,7 @@ export default function ProProfissionalPublico() {
               <SectionTitle
                 title="Meus links"
                 subtitle="Acesse os principais canais profissionais"
+                theme={theme}
               />
 
               <div style={{ display: "grid", gap: 10 }}>
@@ -779,6 +780,7 @@ export default function ProProfissionalPublico() {
               <SectionTitle
                 title="Serviços"
                 subtitle="O que este profissional oferece"
+                theme={theme}
               />
 
               <div style={{ display: "grid", gap: 9 }}>
@@ -870,7 +872,7 @@ const toolbarButtonStyle = {
     'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
 };
 
-function SectionTitle({ title, subtitle }) {
+function SectionTitle({ title, subtitle, theme }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <h2
@@ -888,7 +890,7 @@ function SectionTitle({ title, subtitle }) {
       <p
         style={{
           margin: "5px 0 0",
-          color: theme.muted,
+          color: theme?.muted || "#6b7280",
           fontSize: 12.7,
           lineHeight: 1.45,
         }}
