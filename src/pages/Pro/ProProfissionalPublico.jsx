@@ -18,15 +18,25 @@ import {
 } from "../../lib/tappro";
 
 
+const PALETTE_COLORS = {
+  gold: "#b8892f",
+  blue: "#2563eb",
+  green: "#15803d",
+  red: "#b91c1c",
+  purple: "#7c3aed",
+  graphite: "#111827",
+};
+
 function resolveProfessionalTheme(data) {
   const template=String(data?.page_template||"modern");
+  const accent=PALETTE_COLORS[data?.color_palette]||PALETTE_COLORS.gold;
   const themes={
-    classic:{page:"#f3efe8",card:"#fffdfa",header:"linear-gradient(145deg,#241d15,#74521e)",text:"#211d18",muted:"#756f67",border:"#e7dfd4",accent:"#b8892f"},
-    modern:{page:"#edf1f5",card:"#ffffff",header:"linear-gradient(145deg,#111827,#334155)",text:"#111827",muted:"#687386",border:"#e2e8f0",accent:"#2563eb"},
-    futuristic:{page:"#07070a",card:"#111116",header:"linear-gradient(145deg,#111116,#312e81 58%,#6d28d9)",text:"#f8fafc",muted:"#a1a1aa",border:"#2b2b35",accent:"#7c3aed"},
-    minimalist:{page:"#f5f5f2",card:"#ffffff",header:"#ffffff",text:"#161616",muted:"#737373",border:"#e5e5e0",accent:"#111827"},
+    classic:{page:"#f3efe8",card:"#fffdfa",header:"linear-gradient(145deg,#241d15,#74521e)",text:"#211d18",muted:"#756f67",border:"#e7dfd4"},
+    modern:{page:"#edf1f5",card:"#ffffff",header:"linear-gradient(145deg,#111827,#334155)",text:"#111827",muted:"#687386",border:"#e2e8f0"},
+    futuristic:{page:"#07070a",card:"#111116",header:"linear-gradient(145deg,#111116,#312e81 58%,#6d28d9)",text:"#f8fafc",muted:"#a1a1aa",border:"#2b2b35"},
+    minimalist:{page:"#f5f5f2",card:"#ffffff",header:"#ffffff",text:"#161616",muted:"#737373",border:"#e5e5e0"},
   };
-  return {...(themes[template]||themes.modern),template};
+  return {...(themes[template]||themes.modern),accent,template};
 }
 
 const MODULES = {
@@ -450,21 +460,60 @@ export default function ProProfissionalPublico() {
             }}
           />
 
-          {data.photo_url && (
-            <img
-              src={data.photo_url}
-              alt={data.professional_name}
+          {(data.photo_url || data.logo_url) && (
+            <div
               style={{
-                width: 108,
-                height: 108,
-                objectFit: "cover",
-                borderRadius: "50%",
-                border: "4px solid rgba(255,255,255,.85)",
-                boxShadow: "0 14px 34px rgba(0,0,0,.26)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 14,
                 position: "relative",
                 zIndex: 1,
               }}
-            />
+            >
+              {data.photo_url && (
+                <img
+                  src={data.photo_url}
+                  alt={data.professional_name}
+                  style={{
+                    width: 108,
+                    height: 108,
+                    objectFit: "cover",
+                    borderRadius: "50%",
+                    border: "4px solid rgba(255,255,255,.85)",
+                    boxShadow: "0 14px 34px rgba(0,0,0,.26)",
+                  }}
+                />
+              )}
+
+              {data.logo_url && (
+                <div
+                  style={{
+                    width: 76,
+                    height: 76,
+                    padding: 8,
+                    borderRadius: 18,
+                    background: "#ffffff",
+                    border: "1px solid rgba(255,255,255,.82)",
+                    boxShadow: "0 12px 28px rgba(0,0,0,.18)",
+                    display: "grid",
+                    placeItems: "center",
+                    overflow: "hidden",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <img
+                    src={data.logo_url}
+                    alt="Logo da empresa"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           <p
