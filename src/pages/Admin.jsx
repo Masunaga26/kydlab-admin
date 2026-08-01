@@ -1,17 +1,39 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { generateA3PDF } from "../utils/generateA3PDF";
+import { generateA3PulseiraPDF } from "../utils/generateA3PulseiraPDF";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
 
 const BASE_URL = "https://app.kydlab.com.br";
 const QTD_QR_A3 = 125;
+const QTD_QR_A3_PULSEIRA = 377;
+
+function gerarCodigoUnico(codigosExistentes) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  for (let tentativa = 0; tentativa < 1000; tentativa++) {
+    let codigo = "";
+
+    for (let i = 0; i < 10; i++) {
+      codigo += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    if (!codigosExistentes.has(codigo)) {
+      codigosExistentes.add(codigo);
+      return codigo;
+    }
+  }
+
+  throw new Error("Não foi possível gerar um código único.");
+}
 
 export default function Admin() {
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [gerandoA3, setGerandoA3] = useState(false);
+  const [gerandoA3Pulseira, setGerandoA3Pulseira] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -153,6 +175,59 @@ export default function Admin() {
     }
   }
 
+  async function gerarA3Pulseira() {
+    if (
+      !confirm(
+        `Gerar ${QTD_QR_A3_PULSEIRA} novos códigos para PET/Pessoa Emergência, marcá-los como impressos e baixar o A3 Pulseira?`
+      )
+    ) {
+      return;
+    }
+
+    setGerandoA3Pulseira(true);
+
+    try {
+      const codigosExistentes = new Set(tags.map((tag) => tag.code));
+      const novosCodigos = [];
+
+      for (let i = 0; i < QTD_QR_A3_PULSEIRA; i++) {
+        novosCodigos.push({
+          code: gerarCodigoUnico(codigosExistentes),
+          locked: false,
+          printed: true,
+        });
+      }
+
+      /*
+       * O PDF é montado primeiro. Assim, qualquer erro na geração gráfica
+       * acontece antes da gravação dos novos códigos no banco.
+       */
+      const pdf = generateA3PulseiraPDF(novosCodigos);
+
+      const { error } = await supabase.from("tags").insert(novosCodigos);
+
+      if (error) {
+        throw error;
+      }
+
+      pdf.save("QR_A3_PULSEIRA_KYDLAB.pdf");
+
+      alert(
+        `${QTD_QR_A3_PULSEIRA} códigos criados com status Impresso e PDF A3 Pulseira gerado com sucesso.`
+      );
+
+      await fetchData();
+    } catch (error) {
+      console.error("Erro ao gerar A3 Pulseira:", error);
+      alert(
+        "Erro ao gerar A3 Pulseira: " +
+          (error?.message || "erro desconhecido")
+      );
+    } finally {
+      setGerandoA3Pulseira(false);
+    }
+  }
+
   function exportXLS() {
     const dados = tags.map((t) => ({
       Código: t.code,
@@ -227,6 +302,16 @@ export default function Admin() {
 
           <button onClick={gerarA3} style={buttonRed} disabled={gerandoA3}>
             {gerandoA3 ? "Gerando A3..." : "📄 Gerar A3"}
+          </button>
+
+          <button
+            onClick={gerarA3Pulseira}
+            style={buttonPulseira}
+            disabled={gerandoA3Pulseira}
+          >
+            {gerandoA3Pulseira
+              ? "Gerando A3 Pulseira..."
+              : `⌚ A3 Pulseira (${QTD_QR_A3_PULSEIRA})`}
           </button>
 
           <button onClick={fetchData} style={buttonLight}>
@@ -397,6 +482,16 @@ const buttonRed = {
   background: "#ff1c1c",
   color: "#fff",
   fontWeight: 700,
+  cursor: "pointer",
+};
+
+const buttonPulseira = {
+  padding: "12px 16px",
+  border: "none",
+  borderRadius: 10,
+  background: "#0f766e",
+  color: "#fff",
+  fontWeight: 800,
   cursor: "pointer",
 };
 
