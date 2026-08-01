@@ -221,6 +221,44 @@ function safeFilename(value) {
     .toUpperCase();
 }
 
+function createProductionBatchId(prefix) {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+
+  const datePart = [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate()),
+  ].join("");
+
+  const timePart = [
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds()),
+  ].join("");
+
+  return `${prefix}-${datePart}-${timePart}`;
+}
+
+function buildPrintedProductionNotes({
+  environment = "production",
+  batchId,
+  sheet,
+  notes = "",
+}) {
+  return buildNotes(
+    environment,
+    [
+      "[IMPRESSAO:GERADA]",
+      `[LOTE:${batchId}]`,
+      `[FOLHA:${sheet}]`,
+      clean(notes),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
 function fitTextSize(
   doc,
   text,
@@ -289,6 +327,9 @@ export default function AdminPro() {
     useState(false);
 
   const [gerandoA3Pessoa, setGerandoA3Pessoa] =
+    useState(false);
+
+  const [gerandoA4Totem, setGerandoA4Totem] =
     useState(false);
 
   const [erro, setErro] =
@@ -793,6 +834,25 @@ export default function AdminPro() {
         form.physicalQuantity
       );
 
+    const isProductionTotem =
+      form.environment === "production" &&
+      form.productType === "totem" &&
+      form.predefinedProfileType === "company";
+
+    const isProductionPerson =
+      form.environment === "production" &&
+      form.productType === "tag" &&
+      form.predefinedProfileType === "professional";
+
+    if (isProductionTotem || isProductionPerson) {
+      setErro(
+        isProductionTotem
+          ? "Para Totem em Produção, use o botão “Gerar lote de 6 Totens + baixar A4”."
+          : "Para TAP PRO Pessoa em Produção, use o botão “Gerar lote de 56 + baixar A3”."
+      );
+      return;
+    }
+
     if (
       !Number.isInteger(codeCount) ||
       codeCount < 1 ||
@@ -1018,6 +1078,15 @@ export default function AdminPro() {
   }
 
   async function gerarPdfA4QrCode() {
+    const confirmou =
+      window.confirm(
+        "Esta ação é uma REIMPRESSÃO dos códigos selecionados.\n\nNenhum código novo será criado. Deseja continuar?"
+      );
+
+    if (!confirmou) {
+      return;
+    }
+
     const selectedPieces =
       pecas.filter((piece) =>
         selecionadas.includes(
@@ -1364,10 +1433,412 @@ export default function AdminPro() {
   }
 
 
-  async function gerarProducaoA3Pessoa() {
+
+  async function gerarProducaoA4Totem() {
+    const batchId =
+      createProductionBatchId(
+        "TOTEM-A4"
+      );
+
     const confirmou =
       window.confirm(
-        "Gerar 56 novas peças TAP PRO Pessoa em ambiente de produção e baixar o PDF A3?\n\nProduto: Tag\nPerfil: Profissional\nIdentificação: Produção\nCampanha: Produção\nResponsável: Fábio"
+        `Gerar o lote ${batchId} com 6 novos Totens TAP PRO Empresa e baixar o PDF A4?\n\nOs códigos nascerão vinculados a este lote de impressão.`
+      );
+
+    if (!confirmou) {
+      return;
+    }
+
+    setGerandoA4Totem(true);
+    setErro("");
+    setSucesso("");
+    setGeradas([]);
+
+    try {
+      const { data, error } =
+        await adminCriarPecasPro({
+          productType: "totem",
+          predefinedProfileType:
+            "company",
+          codeCount: 6,
+          physicalQuantity: 1,
+          internalLabel: batchId,
+          campaignName:
+            "Produção Totem A4",
+          sellerName: "Fábio",
+          notes:
+            buildPrintedProductionNotes({
+              batchId,
+              sheet: "A4",
+            }),
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const created = data || [];
+
+      if (created.length !== 6) {
+        throw new Error(
+          `A criação retornou ${created.length} peça(s), mas eram esperadas 6. O PDF não foi gerado para evitar um lote incompleto.`
+        );
+      }
+
+      setGeradas(created);
+      setSucesso(
+        `Lote ${batchId} criado. Preparando acessos e PDF A4...`
+      );
+
+      const accessResults =
+        await Promise.all(
+          created.map(
+            async (piece) => {
+              const {
+                data: access,
+                error: accessError,
+              } =
+                await adminObterAcessoPecaPro(
+                  piece.id
+                );
+
+              if (
+                accessError ||
+                !access?.found ||
+                !clean(
+                  access?.access_code
+                )
+              ) {
+                throw new Error(
+                  `Código administrativo não encontrado para a peça ${piece.code}.`
+                );
+              }
+
+              return {
+                piece,
+                access,
+              };
+            }
+          )
+        );
+
+      const accessMap = {};
+
+      accessResults.forEach(
+        ({ piece, access }) => {
+          accessMap[piece.id] =
+            access;
+        }
+      );
+
+      setAcessos((current) => ({
+        ...current,
+        ...accessMap,
+      }));
+
+      const prepared =
+        await Promise.all(
+          accessResults.map(
+            async ({
+              piece,
+              access,
+            }) => {
+              const [
+                qrPiece,
+                qrCard,
+              ] =
+                await Promise.all([
+                  createQrDataUrl(
+                    publicPieceLink(
+                      piece,
+                      access
+                    )
+                  ),
+                  createQrDataUrl(
+                    controlCardLink(
+                      piece
+                    )
+                  ),
+                ]);
+
+              return {
+                piece,
+                accessCode:
+                  clean(
+                    access.access_code
+                  ),
+                qrPiece,
+                qrCard,
+              };
+            }
+          )
+        );
+
+      const doc =
+        new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const columns = 2;
+      const rows = 3;
+      const marginX = 12;
+      const marginY = 14;
+      const gapX = 8;
+      const gapY = 8;
+
+      const blockWidth =
+        (
+          pageWidth -
+          marginX * 2 -
+          gapX
+        ) / columns;
+
+      const blockHeight =
+        (
+          pageHeight -
+          marginY * 2 -
+          gapY * 2
+        ) / rows;
+
+      const innerPadding = 5;
+      const qrGap = 4;
+      const qrAreaWidth =
+        (
+          blockWidth -
+          innerPadding * 2 -
+          qrGap
+        ) / 2;
+
+      const qrSize =
+        Math.min(
+          31,
+          qrAreaWidth - 5
+        );
+
+      function drawTotemProductionBlock(
+        item,
+        index
+      ) {
+        const column =
+          index % columns;
+
+        const row =
+          Math.floor(
+            index / columns
+          );
+
+        const x =
+          marginX +
+          column *
+            (
+              blockWidth +
+              gapX
+            );
+
+        const y =
+          marginY +
+          row *
+            (
+              blockHeight +
+              gapY
+            );
+
+        doc.setDrawColor(45);
+        doc.setLineWidth(0.22);
+        doc.rect(
+          x,
+          y,
+          blockWidth,
+          blockHeight
+        );
+
+        const leftX =
+          x + innerPadding;
+
+        const rightX =
+          leftX +
+          qrAreaWidth +
+          qrGap;
+
+        const titleY =
+          y + 7;
+
+        const qrY =
+          y + 12;
+
+        doc.setTextColor(0);
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+        doc.setFontSize(8);
+
+        doc.text(
+          "QR TOTEM",
+          leftX +
+            qrAreaWidth / 2,
+          titleY,
+          {
+            align: "center",
+          }
+        );
+
+        doc.text(
+          "QR CARTÃO-CONTROLE",
+          rightX +
+            qrAreaWidth / 2,
+          titleY,
+          {
+            align: "center",
+          }
+        );
+
+        const leftQrX =
+          leftX +
+          (
+            qrAreaWidth -
+            qrSize
+          ) / 2;
+
+        const rightQrX =
+          rightX +
+          (
+            qrAreaWidth -
+            qrSize
+          ) / 2;
+
+        doc.addImage(
+          item.qrPiece,
+          "PNG",
+          leftQrX,
+          qrY,
+          qrSize,
+          qrSize,
+          undefined,
+          "FAST"
+        );
+
+        doc.addImage(
+          item.qrCard,
+          "PNG",
+          rightQrX,
+          qrY,
+          qrSize,
+          qrSize,
+          undefined,
+          "FAST"
+        );
+
+        const codeY =
+          qrY + qrSize + 8;
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+
+        fitTextSize(
+          doc,
+          item.piece.code,
+          qrAreaWidth - 3,
+          9,
+          6
+        );
+
+        doc.text(
+          String(
+            item.piece.code || ""
+          ),
+          leftX +
+            qrAreaWidth / 2,
+          codeY,
+          {
+            align: "center",
+          }
+        );
+
+        fitTextSize(
+          doc,
+          item.accessCode,
+          qrAreaWidth - 3,
+          10,
+          7
+        );
+
+        doc.text(
+          String(
+            item.accessCode || ""
+          ),
+          rightX +
+            qrAreaWidth / 2,
+          codeY,
+          {
+            align: "center",
+          }
+        );
+
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+        doc.setFontSize(6.5);
+        doc.setTextColor(90);
+
+        doc.text(
+          batchId,
+          x + blockWidth / 2,
+          y + blockHeight - 5,
+          {
+            align: "center",
+          }
+        );
+      }
+
+      prepared.forEach(
+        drawTotemProductionBlock
+      );
+
+      doc.save(
+        `TAP-PRO-${batchId}.pdf`
+      );
+
+      setSucesso(
+        `Lote ${batchId}: 6 Totens criados e encaminhados para impressão no PDF A4.`
+      );
+
+      await carregarPecas();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    } catch (error) {
+      console.error(error);
+
+      setErro(
+        error?.message ||
+          "Não foi possível criar o lote A4 de Totens TAP PRO."
+      );
+    } finally {
+      setGerandoA4Totem(false);
+    }
+  }
+
+
+  async function gerarProducaoA3Pessoa() {
+    const batchId =
+      createProductionBatchId(
+        "PESSOA-A3"
+      );
+
+    const confirmou =
+      window.confirm(
+        `Gerar o lote ${batchId} com 56 novas peças TAP PRO Pessoa e baixar o PDF A3?\n\nOs códigos nascerão vinculados a este lote de impressão.`
       );
 
     if (!confirmou) {
@@ -1387,13 +1858,15 @@ export default function AdminPro() {
             "professional",
           codeCount: 56,
           physicalQuantity: 1,
-          internalLabel: "Produção",
-          campaignName: "Produção",
+          internalLabel: batchId,
+          campaignName:
+            "Produção Pessoa A3",
           sellerName: "Fábio",
-          notes: buildNotes(
-            "production",
-            ""
-          ),
+          notes:
+            buildPrintedProductionNotes({
+              batchId,
+              sheet: "A3",
+            }),
         });
 
       if (error) {
@@ -1715,17 +2188,12 @@ export default function AdminPro() {
         drawProductionBlock
       );
 
-      const date =
-        new Date()
-          .toISOString()
-          .slice(0, 10);
-
       doc.save(
-        `TAP-PRO-PESSOA-PRODUCAO-A3-${date}.pdf`
+        `TAP-PRO-${batchId}.pdf`
       );
 
       setSucesso(
-        "56 peças TAP PRO Pessoa criadas e PDF A3 baixado com sucesso."
+        `Lote ${batchId}: 56 peças TAP PRO Pessoa criadas e encaminhadas para impressão no PDF A3.`
       );
 
       await carregarPecas();
@@ -2395,6 +2863,72 @@ export default function AdminPro() {
 
           <div
             style={{
+              marginBottom: "14px",
+              padding: "16px",
+              borderRadius: "16px",
+              border: "1px solid #bfdbfe",
+              background: "#eff6ff",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: "16px",
+                  }}
+                >
+                  Produção rápida — Totem TAP PRO
+                </strong>
+
+                <span
+                  style={{
+                    display: "block",
+                    marginTop: "5px",
+                    color: "#6b7280",
+                    fontSize: "13px",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Cria um lote novo com 6 Totens Empresa, registra data e horário e baixa o PDF A4 para impressão.
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={gerarProducaoA4Totem}
+                disabled={gerandoA4Totem}
+                style={{
+                  ...buttonStyle,
+                  minWidth: "250px",
+                  background:
+                    gerandoA4Totem
+                      ? "#9ca3af"
+                      : "#1d4ed8",
+                  color: "#ffffff",
+                  cursor:
+                    gerandoA4Totem
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {gerandoA4Totem
+                  ? "Criando lote de 6..."
+                  : "Gerar lote de 6 Totens + baixar A4"}
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
               marginBottom: "22px",
               padding: "16px",
               borderRadius: "16px",
@@ -2430,7 +2964,7 @@ export default function AdminPro() {
                     lineHeight: 1.45,
                   }}
                 >
-                  Cria 56 tags profissionais em produção e baixa o PDF A3 com QR da peça, QR do Cartão-Controle e os respectivos códigos.
+                  Cria um lote novo com 56 peças TAP PRO Pessoa, registra data e horário e baixa o PDF A3 para impressão.
                 </span>
               </div>
 
@@ -2454,7 +2988,7 @@ export default function AdminPro() {
               >
                 {gerandoA3Pessoa
                   ? "Criando 56 peças..."
-                  : "Gerar 56 peças + baixar A3"}
+                  : "Gerar lote de 56 + baixar A3"}
               </button>
             </div>
           </div>
@@ -2813,7 +3347,7 @@ export default function AdminPro() {
             >
               {gerandoA4
                 ? "Gerando PDF..."
-                : "A4 QR Code"}
+                : "Reimprimir seleção A4"}
             </button>
           </div>
 
