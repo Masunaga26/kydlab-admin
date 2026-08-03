@@ -31,3 +31,47 @@ input:focus,select:focus{border-color:var(--c);box-shadow:0 0 0 4px rgba(21,23,2
 .ti-message{position:sticky;bottom:14px;padding:14px 18px;border-radius:14px;background:var(--c);color:#fff}
 button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:800px){.ti-card{padding:26px 20px}.ti-admin{padding:14px}.ti-admin-header,.ti-row,.ti-pair{flex-direction:column}.ti-admin-grid,.ti-production{grid-template-columns:1fr}.ti-stats{grid-template-columns:repeat(2,1fr)}.ti-search{grid-template-columns:1fr}.ti-unit{text-align:left}}
+
+/* GRAVADOR NFC — TAP INSTA */
+.ti-nfc-panel{border-width:2px}
+.ti-nfc-head{align-items:flex-start}
+.ti-nfc-support{display:grid;gap:4px;min-width:240px;padding:14px 16px;border-radius:14px;background:var(--m)}
+.ti-nfc-support span{font-size:12px;color:rgba(21,23,26,.62)}
+.ti-operator{max-width:420px;margin-bottom:18px}
+.ti-scanner-grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);gap:20px;align-items:start}
+.ti-code-entry{display:grid;grid-template-columns:1fr auto;gap:10px}
+.ti-code-entry button{min-width:150px}
+.ti-scanner-actions{margin-top:10px}
+.ti-camera{position:relative;margin-top:14px;overflow:hidden;border-radius:18px;background:#050607;aspect-ratio:16/9}
+.ti-camera video{width:100%;height:100%;object-fit:cover}
+.ti-camera-guide{position:absolute;inset:30% 18%;display:grid;place-items:center;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.42)}
+.ti-camera-guide span{padding:5px 8px;border-radius:6px;background:rgba(0,0,0,.7);color:#fff;font-size:12px;font-weight:900;letter-spacing:.18em}
+.ti-camera small{position:absolute;left:0;right:0;bottom:12px;color:#fff;text-align:center}
+.ti-nfc-card{display:grid;gap:13px;padding:20px;border-radius:18px;background:var(--c);color:#fff}
+.ti-nfc-label{font-size:11px;font-weight:900;letter-spacing:.17em;opacity:.7}
+.ti-nfc-code{font-size:48px;letter-spacing:.18em}
+.ti-nfc-data{display:grid;gap:5px;padding:13px;border-radius:12px;background:rgba(255,255,255,.09)}
+.ti-nfc-data span{font-size:11px;opacity:.7}
+.ti-nfc-data code{overflow-wrap:anywhere}
+.ti-nfc-empty{padding:28px 14px;border:1px dashed rgba(255,255,255,.3);border-radius:12px;text-align:center;opacity:.65}
+.ti-nfc-status{padding:14px;border-radius:12px;background:rgba(255,255,255,.1);font-weight:750;line-height:1.35}
+.ti-status-success{background:#195f3a}
+.ti-status-error{background:#7d241f}
+.ti-status-writing,.ti-status-verifying,.ti-status-searching{background:#544310}
+.ti-write-button{border-color:#fff;background:#fff;color:var(--c)}
+.ti-nfc-card .ti-link{color:#fff}
+.ti-nfc-history-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding-top:18px;border-top:1px solid var(--b)}
+.ti-nfc-history-head>div{display:grid;gap:3px}
+.ti-nfc-history-head span{font-size:12px;color:rgba(21,23,26,.62)}
+.ti-nfc-history-head button{padding:0 18px}
+.ti-nfc-last{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-top:12px;padding:13px 15px;border-radius:12px;background:var(--m)}
+.ti-nfc-last span,.ti-nfc-last small{font-size:12px;color:rgba(21,23,26,.62)}
+@media(max-width:800px){
+  .ti-scanner-grid{grid-template-columns:1fr}
+  .ti-code-entry{grid-template-columns:1fr}
+  .ti-code-entry button{width:100%}
+  .ti-nfc-support{min-width:0}
+  .ti-nfc-history-head{align-items:stretch;flex-direction:column}
+  .ti-nfc-last{grid-template-columns:1fr}
+  .ti-camera-guide{inset:28% 12%}
+}
